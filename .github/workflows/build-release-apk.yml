@@ -26,6 +26,17 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Ensure Gradle Wrapper exists
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "gradlew not found, generating wrapper..."
+            gradle wrapper --gradle-version 8.2
+            chmod +x ./gradlew
+          else
+            chmod +x ./gradlew
+            echo "gradlew found, making executable..."
+          fi
+
       - name: Create Keystore File
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
