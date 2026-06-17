@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Glowing accent aura in the background of the foreground layer -->
+    <path
+        android:pathData="M 54, 54 m -24, 0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"
+        android:fillColor="#15FF8A00" />
+
+    <!-- Sleek Wallet Card Representation -->
+    <!-- Base card block with smooth rounded corner -->
+    <path
+        android:pathData="M32,44 C29,44 27,46 27,49 L27,69 C27,72 29,74 32,74 L76,74 C79,74 81,72 81,69 L81,49 C81,46 79,44 76,44 Z"
+        android:fillColor="#EAEAEA" />
+
+    <!-- Wallet flap element overlay -->
+    <path
+        android:pathData="M56,51 C56,49.5 57.5,48 59,48 L77,48 C78.5,48 80,49.5 80,51 L80,61 C80,62.5 78.5,64 77,64 L59,64 C57.5,64 56,62.5 56,61 Z"
+        android:fillColor="#FF8A00" />
+
+    <!-- Metallic lock/snap latch inside the flap -->
+    <path
+        android:pathData="M65,56 A3,3 0 1 1 61,56 A3,3 0 1 1 65,56"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Dynamic trend line / Upward rising arrow reflecting income and expense growth -->
+    <path
+        android:pathData="M20,68 L36,54 L50,60 L78,28"
+        android:strokeColor="#FF8A00"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Arrowhead at the top right of the trend line (78, 28) -->
+    <path
+        android:pathData="M66,28 L78,28 L78,40"
+        android:strokeColor="#FF8A00"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+</vector>

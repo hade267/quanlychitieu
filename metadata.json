@@ -1,0 +1,6 @@
+{
+  "name": "Velocity Ledger",
+  "description": "Ứng dụng quản lý chi tiêu và thu nhập giao diện tối hiện đại, trực quan với bento grid và lịch chi tiêu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
