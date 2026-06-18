@@ -8,7 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.db.AppDatabase
 import com.example.data.model.Transaction
 import com.example.data.model.CategoryEntity
+import com.example.data.model.ShippingOrder
 import com.example.data.repository.TransactionRepository
+import com.example.data.repository.ShippingRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +28,9 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val repository: TransactionRepository
     val allTransactions: StateFlow<List<Transaction>>
     val allCategories: StateFlow<List<CategoryEntity>>
+
+    private val shippingRepository: ShippingRepository
+    val allShippingOrders: StateFlow<List<ShippingOrder>>
     
     private val seedMutex = Mutex()
 
@@ -43,6 +48,14 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     init {
         val database = AppDatabase.getDatabase(application)
         repository = TransactionRepository(database.transactionDao(), database.categoryDao())
+        
+        val shippingDao = database.shippingOrderDao()
+        shippingRepository = ShippingRepository(shippingDao)
+        allShippingOrders = shippingRepository.allShippingOrders.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
         
         allTransactions = repository.allTransactions.stateIn(
             scope = viewModelScope,
@@ -258,6 +271,24 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                     "Lỗi khi tải bản cập nhật: ${e.localizedMessage ?: "Lỗi không xác định"}"
                 )
             }
+        }
+    }
+
+    fun insertShippingOrder(order: ShippingOrder) {
+        viewModelScope.launch {
+            shippingRepository.insert(order)
+        }
+    }
+
+    fun updateShippingOrder(order: ShippingOrder) {
+        viewModelScope.launch {
+            shippingRepository.update(order)
+        }
+    }
+
+    fun deleteShippingOrder(order: ShippingOrder) {
+        viewModelScope.launch {
+            shippingRepository.delete(order)
         }
     }
 }

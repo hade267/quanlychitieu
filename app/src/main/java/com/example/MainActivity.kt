@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -233,16 +234,6 @@ fun VelocityLedgerApp(viewModel: TransactionViewModel) {
                             )
                         }
                     },
-
-                    actions = {
-                        IconButton(onClick = { selectedTab = 2 }) {
-                            Icon(
-                                imageVector = Icons.Default.AccountCircle,
-                                contentDescription = "Tài khoản",
-                                tint = if (selectedTab == 2) DeepOrangePrimary else WhiteOpacity70
-                            )
-                        }
-                    },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = Color.Black.copy(alpha = 0.25f)
                     ),
@@ -263,7 +254,8 @@ fun VelocityLedgerApp(viewModel: TransactionViewModel) {
                         onShowAddDialog = { showAddDialog = true }
                     )
                     1 -> StatsTab(viewModel = viewModel)
-                    2 -> ProfileTab(viewModel = viewModel)
+                    2 -> ShippingTab(viewModel = viewModel)
+                    3 -> ProfileTab(viewModel = viewModel)
                 }
 
                 // Floating bottom glassmorphic dock menu overlay
@@ -331,11 +323,11 @@ fun FloatingBottomDock(
 ) {
     Row(
         modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .fillMaxWidth(0.92f)
+            .padding(horizontal = 12.dp)
+            .fillMaxWidth(0.95f)
             .height(72.dp)
             .background(
-                color = Color(0xF2101319), // High transclucent slate backer
+                color = Color(0xF2101319), // High translucent slate backer
                 shape = RoundedCornerShape(24.dp)
             )
             .border(
@@ -343,7 +335,7 @@ fun FloatingBottomDock(
                 color = GlassBorder,
                 shape = RoundedCornerShape(24.dp)
             )
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -355,10 +347,18 @@ fun FloatingBottomDock(
             onClick = { onTabSelected(0) }
         )
 
+        // Tab 1: Thống kê / Stats
+        DockItem(
+            isSelected = selectedTab == 1,
+            icon = Icons.Default.Star,
+            label = "Báo cáo",
+            onClick = { onTabSelected(1) }
+        )
+
         // Add Floating Action Overlay Trigger
         Box(
             modifier = Modifier
-                .size(56.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
@@ -372,16 +372,24 @@ fun FloatingBottomDock(
                 imageVector = Icons.Default.AddCircle,
                 contentDescription = "Thêm giao dịch",
                 tint = Color.Black,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(32.dp)
             )
         }
 
-        // Tab 1: Thống kê / Stats
+        // Tab 2: Đơn Ship / Shipping orders
         DockItem(
-            isSelected = selectedTab == 1,
-            icon = Icons.Default.Star,
-            label = "Báo cáo",
-            onClick = { onTabSelected(1) }
+            isSelected = selectedTab == 2,
+            icon = Icons.Default.ShoppingCart,
+            label = "Đơn Ship",
+            onClick = { onTabSelected(2) }
+        )
+
+        // Tab 3: Cài đặt / Cấu hình
+        DockItem(
+            isSelected = selectedTab == 3,
+            icon = Icons.Default.AccountCircle,
+            label = "Cài đặt",
+            onClick = { onTabSelected(3) }
         )
     }
 }
