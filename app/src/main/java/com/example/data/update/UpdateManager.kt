@@ -13,7 +13,7 @@ object UpdateManager {
     private const val KEY_UPDATE_URL = "update_url"
     
     // Default URL pointing to a raw configuration repository schema
-    const val DEFAULT_UPDATE_URL = "https://raw.githubusercontent.com/nam26072003/quanlychitieu/main/update.json"
+    const val DEFAULT_UPDATE_URL = "https://raw.githubusercontent.com/hade267/quanlychitieu/main/update.json"
 
     val moshi: Moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
