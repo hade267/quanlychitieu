@@ -23,6 +23,7 @@ jobs:
           set -euo pipefail
 
           version_name="${TAG_NAME#v}"
+          # Version code format: MAJOR * 1_000_000 + MINOR * 1_000 + PATCH
           if [[ "${version_name}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             major="${BASH_REMATCH[1]}"
             minor="${BASH_REMATCH[2]}"
@@ -36,7 +37,8 @@ jobs:
             major="${BASH_REMATCH[1]}"
             version_code="$((major * 1000000))"
           else
-            version_code="${{ github.run_number }}"
+            echo "Invalid tag format '${TAG_NAME}'. Use vMAJOR.MINOR.PATCH, vMAJOR.MINOR, or vMAJOR."
+            exit 1
           fi
 
           apk_url="$(jq -r '.release.assets[] | select(.name | test("\\.apk$")) | .browser_download_url' "$GITHUB_EVENT_PATH" | head -n1)"
