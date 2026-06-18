@@ -69,7 +69,7 @@ jobs:
             tag_name="v${version_name}"
           fi
 
-          # Version code format: MAJOR * 1_000_000 + MINOR * 1_000 + PATCH
+          # Version code format: MAJOR * 1000000 + MINOR * 1000 + PATCH
           if [[ "${version_name}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             major="${BASH_REMATCH[1]}"
             minor="${BASH_REMATCH[2]}"
@@ -99,8 +99,8 @@ jobs:
           set -euo pipefail
           perl -i -pe 's/versionCode\s*=\s*\d+/versionCode = '"${VERSION_CODE}"'/' app/build.gradle.kts
           perl -i -pe 's/versionName\s*=\s*"[^"]*"/versionName = "'"${VERSION_NAME}"'"/' app/build.gradle.kts
-          grep -q "versionCode = ${VERSION_CODE}" app/build.gradle.kts
-          grep -q "versionName = \"${VERSION_NAME}\"" app/build.gradle.kts
+          grep -Eq "versionCode\\s*=\\s*${VERSION_CODE}" app/build.gradle.kts
+          grep -Eq "versionName\\s*=\\s*\"${VERSION_NAME}\"" app/build.gradle.kts
           echo "Updated app/build.gradle.kts to versionName=${VERSION_NAME}, versionCode=${VERSION_CODE}"
 
       - name: Create Keystore File
