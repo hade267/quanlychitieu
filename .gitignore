@@ -1,1 +1,18 @@
-Nothing should be ignored based on the provided file changes. The only modified file is a GitHub Actions workflow file (`.github/workflows/build-release-apk.yml`), which is a configuration file and not a build artifact, dependency, or temporary file.
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.env
+debug.keystore

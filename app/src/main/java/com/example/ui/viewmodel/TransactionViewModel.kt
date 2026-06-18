@@ -209,6 +209,40 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month && cal.get(Calendar.DAY_OF_MONTH) == day
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Update Checking States for In-App Updates
+    private val _updateState = MutableStateFlow<com.example.data.update.UpdateState>(com.example.data.update.UpdateState.Idle)
+    val updateState: StateFlow<com.example.data.update.UpdateState> = _updateState.asStateFlow()
+
+    fun checkForUpdates(context: android.content.Context) {
+        viewModelScope.launch {
+            _updateState.value = com.example.data.update.UpdateState.Checking
+            try {
+                val info = com.example.data.update.UpdateManager.checkUpdate(context)
+                val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                val currentVersionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    pInfo.longVersionCode.toInt()
+                } else {
+                    @Suppress("DEPRECATION")
+                    pInfo.versionCode
+                }
+
+                if (info.versionCode > currentVersionCode) {
+                    _updateState.value = com.example.data.update.UpdateState.UpdateAvailable(info)
+                } else {
+                    _updateState.value = com.example.data.update.UpdateState.UpToDate
+                }
+            } catch (e: Exception) {
+                _updateState.value = com.example.data.update.UpdateState.Error(
+                    e.localizedMessage ?: "Không thể kết nối đến máy chủ cập nhật."
+                )
+            }
+        }
+    }
+
+    fun resetUpdateState() {
+        _updateState.value = com.example.data.update.UpdateState.Idle
+    }
 }
 
 class TransactionViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

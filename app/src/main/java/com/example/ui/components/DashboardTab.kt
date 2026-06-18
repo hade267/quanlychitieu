@@ -385,8 +385,9 @@ fun CalendarBentoBlock(
                                             fontSize = 13.sp
                                         )
                                         
-                                        if (income > 0) {
-                                            val text = "+${formatCompactAmount(income)}"
+                                        val net = income - expense
+                                        if (net > 0) {
+                                            val text = "+${formatCompactAmount(net)}"
                                             Text(
                                                 text = text,
                                                 color = if (isSelected) Color.Black else SuccessGreen,
@@ -395,11 +396,20 @@ fun CalendarBentoBlock(
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
-                                        } else if (expense > 0) {
-                                            val text = "-${formatCompactAmount(expense)}"
+                                        } else if (net < 0) {
+                                            val text = "-${formatCompactAmount(Math.abs(net))}"
                                             Text(
                                                 text = text,
                                                 color = if (isSelected) Color.Black else ErrorRed,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 9.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        } else if (income > 0 || expense > 0) {
+                                            Text(
+                                                text = "0đ",
+                                                color = if (isSelected) Color.Black else WhiteOpacity50,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 9.sp,
                                                 maxLines = 1,

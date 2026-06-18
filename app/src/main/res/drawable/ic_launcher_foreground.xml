@@ -5,41 +5,153 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Glowing accent aura in the background of the foreground layer -->
+    <!-- 1. BACKGROUND GLOW UNDER RIDER -->
     <path
-        android:pathData="M 54, 54 m -24, 0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"
-        android:fillColor="#15FF8A00" />
+        android:pathData="M54,54 m-28,0 a28,28 0 1,1 56,0 a28,28 0 1,1 -56,0"
+        android:fillColor="#20FFFFFF" />
 
-    <!-- Sleek Wallet Card Representation -->
-    <!-- Base card block with smooth rounded corner -->
+    <!-- 2. THE UPWARD GROWTH TREND ARROW RISING FROM THE WALLET BAG -->
     <path
-        android:pathData="M32,44 C29,44 27,46 27,49 L27,69 C27,72 29,74 32,74 L76,74 C79,74 81,72 81,69 L81,49 C81,46 79,44 76,44 Z"
-        android:fillColor="#EAEAEA" />
-
-    <!-- Wallet flap element overlay -->
-    <path
-        android:pathData="M56,51 C56,49.5 57.5,48 59,48 L77,48 C78.5,48 80,49.5 80,51 L80,61 C80,62.5 78.5,64 77,64 L59,64 C57.5,64 56,62.5 56,61 Z"
-        android:fillColor="#FF8A00" />
-
-    <!-- Metallic lock/snap latch inside the flap -->
-    <path
-        android:pathData="M65,56 A3,3 0 1 1 61,56 A3,3 0 1 1 65,56"
-        android:fillColor="#FFFFFF" />
-
-    <!-- Dynamic trend line / Upward rising arrow reflecting income and expense growth -->
-    <path
-        android:pathData="M20,68 L36,54 L50,60 L78,28"
-        android:strokeColor="#FF8A00"
+        android:pathData="M 32,54 L 46,38 L 56,44 L 80,18"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="4"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
-
-    <!-- Arrowhead at the top right of the trend line (78, 28) -->
     <path
-        android:pathData="M66,28 L78,28 L78,40"
-        android:strokeColor="#FF8A00"
+        android:pathData="M 32,54 L 46,38 L 56,44 L 80,18"
+        android:strokeColor="#FEF08A"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Arrowhead -->
+    <path
+        android:pathData="M 68,18 H 80 V 30"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="4"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
+    <path
+        android:pathData="M 68,18 H 80 V 30"
+        android:strokeColor="#FEF08A"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 
+    <!-- 3. SCOOTER WHEELS -->
+    <path
+        android:pathData="M 36,78 m -9,0 a 9,9 0 1,1 18,0 a 9,9 0 1,1 -18,0"
+        android:fillColor="#1E293B" />
+    <path
+        android:pathData="M 36,78 m -4,0 a 4,4 0 1,1 8,0 a 4,4 0 1,1 -8,0"
+        android:fillColor="#E2E8F0" />
+    
+    <path
+        android:pathData="M 72,78 m -9,0 a 9,9 0 1,1 18,0 a 9,9 0 1,1 -18,0"
+        android:fillColor="#1E293B" />
+    <path
+        android:pathData="M 72,78 m -4,0 a 4,4 0 1,1 8,0 a 4,4 0 1,1 -8,0"
+        android:fillColor="#E2E8F0" />
+
+    <!-- 4. SCOOTER BODY AND CHASSIS -->
+    <path
+        android:pathData="M 36,74 C 36,66 42,62 48,62 L 68,64 C 68,70 60,74 54,74 L 36,74 Z"
+        android:fillColor="#FBBF24" />
+    <path
+        android:pathData="M 66,66 C 68,58 72,52 74,47 L 70,47 C 68,52 64,58 62,64 Z"
+        android:fillColor="#F1F5F9" />
+    <path
+        android:pathData="M 68,64 C 70,56 74,51 76,46 L 73,46 C 71,51 67,56 65,62 Z"
+        android:fillColor="#FBBF24" />
+    <path
+        android:pathData="M 72,69 L 75,69 C 76,71 76,73 75,74 L 70,72 C 71,71 71,70 72,69 Z"
+        android:fillColor="#FBBF24" />
+
+    <!-- Steering and Headlight -->
+    <path
+        android:pathData="M 74,43 L 73,45 H 77 Z"
+        android:fillColor="#94A3B8" />
+    <path
+        android:pathData="M 78,44 m -2.5,0 a 2.5,2.5 0 1,1 5,0 a 2.5,2.5 0 1,1 -5,0"
+        android:fillColor="#FEF08A" />
+    <path
+        android:pathData="M 75,41 H 78 V 43 H 75 Z"
+        android:fillColor="#CBD5E1" />
+
+    <!-- 5. LEATHER WALLET CARRIER BAG -->
+    <path
+        android:pathData="M 23,48 H 41 V 66 H 23 Z"
+        android:fillColor="#78350F" />
+    <path
+        android:pathData="M 22,46 C 21,46 20,47 20,48 L 20,64 C 20,65 21,66 22,66 L 39,66 C 40,66 41,65 41,64 L 41,48 C 41,47 40,46 39,46 Z"
+        android:fillColor="#92400E" />
+    <path
+        android:pathData="M 22,48 H 39 V 64 H 22 Z"
+        android:strokeColor="#F59E0B"
+        android:strokeWidth="0.5"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M 29,46 H 32 V 57 H 29 Z"
+        android:fillColor="#B45309" />
+    <path
+        android:pathData="M 30.5,55 m -1.5,0 a 1.5,1.5 0 1,1 3,0 a 1.5,1.5 0 1,1 -3,0"
+        android:fillColor="#F59E0B" />
+
+    <!-- 6. DELIVERY RIDER -->
+    <path
+        android:pathData="M 46,62 L 53,62 C 55,62 57,63 57,65 L 56,71 L 52,71 L 52,65 Z"
+        android:fillColor="#1E293B" />
+    <path
+        android:pathData="M 44,48 C 46,45 52,45 55,48 L 53,58 C 51,60 48,60 46,58 Z"
+        android:fillColor="#EA580C" />
+    <path
+        android:pathData="M 52,48 L 66,48 L 66,51 L 52,51 Z"
+        android:fillColor="#F97316" />
+    <path
+        android:pathData="M 66,50 m -1.5,0 a 1.5,1.5 0 1,1 3,0 a 1.5,1.5 0 1,1 -3,0"
+        android:fillColor="#FED7AA" />
+    <path
+        android:pathData="M 49,45 L 51,45 L 51,48 L 49,48 Z"
+        android:fillColor="#FED7AA" />
+    <path
+        android:pathData="M 50,40 m -3.5,0 a 3.5,3.5 0 1,1 7,0 a 3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FED7AA" />
+    <path
+        android:pathData="M 51,41 C 51,42 50,42.5 49,42.5"
+        android:strokeColor="#1E293B"
+        android:strokeWidth="0.5" />
+    <path
+        android:pathData="M 45,39 C 45,33 53,33 53,38 L 53,42 L 45,40 Z"
+        android:fillColor="#EA580C" />
+    <path
+        android:pathData="M 48,39 L 52,39 L 51,41 L 48,41 Z"
+        android:fillColor="#1E293B" />
+
+    <!-- 7. FLOATING GOLD COINS (VND ACCENTS) -->
+    <path
+        android:pathData="M 28,26 m -4.5,0 a 4.5,4.5 0 1,1 9,0 a 4.5,4.5 0 1,1 -9,0"
+        android:fillColor="#FBBF24"
+        android:strokeColor="#D97706"
+        android:strokeWidth="1" />
+    <path
+        android:pathData="M 26,25 L 27,27 L 28,25"
+        android:strokeColor="#78350F"
+        android:strokeWidth="0.5" />
+
+    <path
+        android:pathData="M 18,36 m -4.5,0 a 4.5,4.5 0 1,1 9,0 a 4.5,4.5 0 1,1 -9,0"
+        android:fillColor="#FBBF24"
+        android:strokeColor="#D97706"
+        android:strokeWidth="1" />
+    <path
+        android:pathData="M 16,35 L 17,37 L 18,35"
+        android:strokeColor="#78350F"
+        android:strokeWidth="0.5" />
+
+    <path
+        android:pathData="M 38,18 m -4,0 a 4,4 0 1,1 8,0 a 4,4 0 1,1 -8,0"
+        android:fillColor="#FBBF24"
+        android:strokeColor="#D97706"
+        android:strokeWidth="1" />
+    
 </vector>

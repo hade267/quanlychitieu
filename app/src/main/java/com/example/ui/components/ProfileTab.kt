@@ -33,12 +33,16 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.platform.LocalContext
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import com.example.data.update.UpdateState
+import com.example.data.update.UpdateManager
 
 @Composable
 fun ProfileTab(viewModel: TransactionViewModel) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("velocity_ledger_prefs", Context.MODE_PRIVATE) }
-    val ledgerName = sharedPrefs.getString("ledger_name", "Velocity Ledger") ?: "Velocity Ledger"
+    val ledgerName = sharedPrefs.getString("ledger_name", "Quản lý chi tiêu") ?: "Quản lý chi tiêu"
 
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
@@ -366,6 +370,386 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                     )
                 }
             }
+        }
+
+        // --- IN-APP UPDATE FOR NON-PLAY STORE APPS ---
+        val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+        var showUrlConfigDialog by remember { mutableStateOf(false) }
+        var inputUrlText by remember { mutableStateOf(UpdateManager.getUpdateUrl(context)) }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
+            colors = CardDefaults.cardColors(containerColor = GlassCardBg),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "CẬP NHẬT ỨNG DỤNG (XƯỞNG NGOÀI GOOGLE PLAY)",
+                    color = WhiteOpacity50,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Phiên bản hiện tại: 1.0 (Build #1)",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Địa chỉ Server JSON: ${UpdateManager.getUpdateUrl(context)}",
+                    color = WhiteOpacity50,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.checkForUpdates(context) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SoftOrangeContainer,
+                            contentColor = OrangeHighlight
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.3f)
+                    ) {
+                        Text(
+                            text = "Kiểm tra cập nhật 🚀",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
+                        onClick = { showUrlConfigDialog = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0x22FFFFFF),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Sửa Server ⚙️",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // 1. UPDATE STATE: CHECKING DIALOG
+        if (updateState is UpdateState.Checking) {
+            Dialog(
+                onDismissRequest = {},
+                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
+                    colors = CardDefaults.cardColors(containerColor = SolidCardBg),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(color = DeepOrangePrimary)
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text(
+                            text = "Đang kiểm tra cập nhật...",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Vui lòng đợi giây lát",
+                            color = WhiteOpacity50,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. UPDATE STATE: UPDATE AVAILABLE DIALOG
+        if (updateState is UpdateState.UpdateAvailable) {
+            val info = (updateState as UpdateState.UpdateAvailable).info
+            Dialog(
+                onDismissRequest = { if (!info.forceUpdate) viewModel.resetUpdateState() },
+                properties = DialogProperties(
+                    dismissOnBackPress = !info.forceUpdate,
+                    dismissOnClickOutside = !info.forceUpdate,
+                    usePlatformDefaultWidth = false
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xCC000000))
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, DeepOrangePrimary.copy(alpha = 0.5f), RoundedCornerShape(24.dp)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF141720)),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text(
+                                text = "✨ BẢN CẬP NHẬT MỚI!",
+                                color = OrangeHighlight,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                            
+                            Spacer(modifier = Modifier.height(10.dp))
+                            
+                            Text(
+                                text = "Phiên bản mới: v${info.versionName}",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            if (info.forceUpdate) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(ErrorRed.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("BẮT BUỘC CẬP NHẬT ⚠️", color = ErrorRed, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = "NỘI DUNG CẬP NHẬT:",
+                                color = WhiteOpacity50,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 160.dp)
+                                    .border(1.dp, GlassBorder, RoundedCornerShape(12.dp)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF090B0F)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    Text(
+                                        text = info.updateLog.ifEmpty { "Không có ghi chú phiên bản nào được cung cấp." },
+                                        color = WhiteOpacity70,
+                                        fontSize = 13.sp,
+                                        lineHeight = 18.sp
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                if (!info.forceUpdate) {
+                                    Button(
+                                        onClick = { viewModel.resetUpdateState() },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0x1BFFFFFF),
+                                            contentColor = Color.White
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Hủy", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        try {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.apkUrl))
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            // Handle error
+                                        }
+                                        if (!info.forceUpdate) {
+                                            viewModel.resetUpdateState()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = DeepOrangePrimary,
+                                        contentColor = Color.Black
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1.2f)
+                                ) {
+                                    Text("Cập Nhật Ngay 🚀", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. UPDATE STATE: UP TO DATE DIALOG
+        if (updateState is UpdateState.UpToDate) {
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                title = { Text("Ứng dụng mới nhất! 🎉", color = Color.White) },
+                text = { Text("Bạn đang sử dụng phiên bản Quản lý chi tiêu mới nhất (v1.0). Không cần cập nhật thêm vào lúc này.", color = WhiteOpacity70) },
+                confirmButton = {
+                    Button(
+                        onClick = { viewModel.resetUpdateState() },
+                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("XÁC NHẬN", fontWeight = FontWeight.Bold)
+                    }
+                },
+                containerColor = SolidCardBg,
+                textContentColor = Color.White
+            )
+        }
+
+        // 4. UPDATE STATE: ERROR DIALOG WITH SHORTCUT TO ADJUST CHECK SERVER
+        if (updateState is UpdateState.Error) {
+            val errorMsg = (updateState as UpdateState.Error).message
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                title = { Text("Kiểm Tra Cập Nhật Lỗi ⚠️", color = Color.White) },
+                text = { 
+                    Column {
+                        Text("Không thể kết nối đến máy chủ cấu hình cập nhật. Vui lòng kiểm tra lại kết nối mạng hoặc đổi địa chỉ server.", color = WhiteOpacity70)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("Chi tiết lỗi:", color = OrangeHighlight, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(errorMsg, color = ErrorRed, fontSize = 11.sp, maxLines = 3)
+                    }
+                },
+                confirmButton = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = { 
+                                viewModel.resetUpdateState()
+                                showUrlConfigDialog = true 
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = OrangeHighlight)
+                        ) {
+                            Text("ĐỔI SERVER", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = { viewModel.resetUpdateState() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray, contentColor = Color.White),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("ĐÓNG")
+                        }
+                    }
+                },
+                containerColor = SolidCardBg,
+                textContentColor = Color.White
+            )
+        }
+
+        // 5. SERVER CONFIGURATION DIALOG
+        if (showUrlConfigDialog) {
+            AlertDialog(
+                onDismissRequest = { showUrlConfigDialog = false },
+                title = { Text("Cấu Hình Server Cập Nhật ⚙️", color = Color.White) },
+                text = { 
+                    Column {
+                        Text(
+                            text = "Nhập địa chỉ JSON chứa thông tin bản cập nhật mới nhất (versionCode, versionName, updateLog, apkUrl). Bạn có thể tự lưu file JSON này lên Github raw để tự cập nhật app ngoại tuyến.",
+                            color = WhiteOpacity70,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = inputUrlText,
+                            onValueChange = { inputUrlText = it },
+                            placeholder = { Text("https://example.com/update.json", color = WhiteOpacity50) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = DeepOrangePrimary,
+                                unfocusedBorderColor = WhiteOpacity20,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(
+                            onClick = { 
+                                inputUrlText = UpdateManager.DEFAULT_UPDATE_URL 
+                            }
+                        ) {
+                            Text("Dùng URL Mẫu (Mặc Định)", color = OrangeHighlight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (inputUrlText.isNotBlank()) {
+                                UpdateManager.saveUpdateUrl(context, inputUrlText)
+                            }
+                            showUrlConfigDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DeepOrangePrimary, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("LƯU LẠI", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showUrlConfigDialog = false },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("HỦY")
+                    }
+                },
+                containerColor = SolidCardBg,
+                textContentColor = Color.White
+            )
         }
     }
 }
