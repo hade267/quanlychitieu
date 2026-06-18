@@ -35,10 +35,10 @@ jobs:
 
       - name: Build update metadata
         env:
-          TAG_NAME: ${{ github.event.release.tag_name || github.event.inputs.tag_name }}
-          RELEASE_BODY: ${{ github.event.release.body || github.event.inputs.release_body || '' }}
-          INPUT_APK_URL: ${{ github.event.inputs.apk_url || '' }}
-          FORCE_UPDATE_INPUT: ${{ github.event.inputs.force_update || 'false' }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.event.release.tag_name }}
+          RELEASE_BODY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_body || github.event.release.body || '' }}
+          INPUT_APK_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.apk_url || '' }}
+          FORCE_UPDATE_INPUT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_update || 'false' }}
         run: |
           set -euo pipefail
 
@@ -91,7 +91,7 @@ jobs:
 
       - name: Commit update.json
         env:
-          TAG_NAME: ${{ github.event.release.tag_name || github.event.inputs.tag_name }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.event.release.tag_name }}
         run: |
           set -euo pipefail
           if git diff --quiet -- update.json; then
