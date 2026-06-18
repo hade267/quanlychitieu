@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v1.2.3). Leave empty to use versionName."
+        required: false
+        type: string
 
 jobs:
   build:
@@ -74,8 +79,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/release/app-release.apk
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.version.outputs.version_name) }}
-          name: Release ${{ github.ref_type == 'tag' && github.ref_name || steps.version.outputs.version_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || format('v{0}', steps.version.outputs.version_name) }}
+          name: Release ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || steps.version.outputs.version_name }}
           draft: false
           prerelease: false
           generate_release_notes: true
