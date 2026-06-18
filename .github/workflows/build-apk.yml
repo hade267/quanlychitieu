@@ -16,6 +16,7 @@ jobs:
     name: Build Release APK
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
 
     steps:
@@ -42,6 +43,72 @@ jobs:
             echo "gradlew found, making executable..."
           fi
 
+      - name: Determine Release Version
+        id: release_version
+        env:
+          INPUT_TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || '' }}
+        run: |
+          set -euo pipefail
+          input_tag="$(echo "${INPUT_TAG_NAME}" | xargs)"
+
+          if [ -n "${input_tag}" ]; then
+            if [[ "${input_tag}" != v* ]]; then
+              input_tag="v${input_tag}"
+            fi
+            tag_name="${input_tag}"
+            version_name="${tag_name#v}"
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag_name="${GITHUB_REF_NAME}"
+            version_name="${tag_name#v}"
+          else
+            version_name="$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)"
+            if [ -z "${version_name}" ]; then
+              echo "Failed to read versionName from app/build.gradle.kts"
+              exit 1
+            fi
+            tag_name="v${version_name}"
+          fi
+
+          # Version code format: MAJOR * 1000000 + MINOR * 1000 + PATCH
+          if [[ "${version_name}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            version_code="$((major * 1000000 + minor * 1000 + patch))"
+          elif [[ "${version_name}" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            version_code="$((major * 1000000 + minor * 1000))"
+          elif [[ "${version_name}" =~ ^([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            version_code="$((major * 1000000))"
+          else
+            echo "Invalid version '${version_name}'. Use X, X.Y or X.Y.Z."
+            exit 1
+          fi
+
+          echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
+          echo "version_name=${version_name}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${version_code}" >> "$GITHUB_OUTPUT"
+
+      - name: Update App Version
+        env:
+          VERSION_NAME: ${{ steps.release_version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.release_version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          perl -i -pe 's/versionCode\s*=\s*\d+/versionCode = '"${VERSION_CODE}"'/' app/build.gradle.kts
+          perl -i -pe 's/versionName\s*=\s*"[^"]*"/versionName = "'"${VERSION_NAME}"'"/' app/build.gradle.kts
+          grep -Eq "versionCode\\s*=\\s*${VERSION_CODE}" app/build.gradle.kts || {
+            echo "Failed to update versionCode to ${VERSION_CODE} in app/build.gradle.kts"
+            exit 1
+          }
+          grep -Eq "versionName\\s*=\\s*\"${VERSION_NAME}\"" app/build.gradle.kts || {
+            echo "Failed to update versionName to ${VERSION_NAME} in app/build.gradle.kts"
+            exit 1
+          }
+          echo "Updated app/build.gradle.kts to versionName=${VERSION_NAME}, versionCode=${VERSION_CODE}"
+
       - name: Create Keystore File
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -65,27 +132,34 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'android' }}
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Get Version Name
-        id: version
-        run: |
-          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
-          if [ -z "$VERSION_NAME" ]; then
-            echo "Failed to read versionName from app/build.gradle.kts"
-            exit 1
-          fi
-          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
-
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/release/app-release.apk
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name) || format('v{0}', steps.version.outputs.version_name) }}
-          name: Release ${{ github.ref_type == 'tag' && github.ref_name || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name) || steps.version.outputs.version_name }}
+          tag_name: ${{ steps.release_version.outputs.tag_name }}
+          name: Release ${{ steps.release_version.outputs.version_name }}
           draft: false
           prerelease: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger update-json workflow
+        uses: actions/github-script@v7
+        env:
+          DISPATCH_REF: ${{ github.event.repository.default_branch }}
+          TAG_NAME: ${{ steps.release_version.outputs.tag_name }}
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "update-json.yml",
+              ref: process.env.DISPATCH_REF,
+              inputs: {
+                tag_name: process.env.TAG_NAME
+              }
+            });
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
