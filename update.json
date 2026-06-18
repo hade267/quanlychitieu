@@ -3,5 +3,5 @@
   "versionName": "1.5.0",
   "updateLog": "Cập nhật ứng dụng lên phiên bản 1.5.0",
   "apkUrl": "https://github.com/hade267/quanlychitieu/releases/download/v1.5.0/com.hade.chitieushipper_1.5.0.apk",
-  "forceUpdate": false
+  "forceUpdate": true
 }
