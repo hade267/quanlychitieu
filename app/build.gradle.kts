@@ -11,11 +11,11 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.velocityledger.xpdvst"
+    applicationId = "com.hade.chitieushipper"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1004000
-    versionName = "1.4.0"
+    versionCode = 1005000
+    versionName = "1.5.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
