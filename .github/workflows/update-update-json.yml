@@ -39,6 +39,7 @@ jobs:
           RELEASE_BODY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_body || github.event.release.body || '' }}
           INPUT_APK_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.apk_url || '' }}
           FORCE_UPDATE_INPUT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_update || 'false' }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
@@ -68,7 +69,17 @@ jobs:
 
           apk_url="${INPUT_APK_URL}"
           if [ -z "${apk_url}" ]; then
-            apk_url="$(jq -r '.release.assets[] | select(.name | test("\\.apk$")) | .browser_download_url' "$GITHUB_EVENT_PATH" | head -n1)"
+            apk_url="$(jq -r '.release.assets[]? | select(.name | test("\\.apk$")) | .browser_download_url' "$GITHUB_EVENT_PATH" | head -n1)"
+          fi
+          if [ -z "${apk_url}" ] || [ "${apk_url}" = "null" ]; then
+            apk_url="$(
+              curl -fsSL \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG_NAME}" \
+                | jq -r '.assets[]? | select(.name | test("\\.apk$")) | .browser_download_url' \
+                | head -n1 || true
+            )"
           fi
           if [ -z "${apk_url}" ] || [ "${apk_url}" = "null" ]; then
             echo "No APK asset found in this release. Attach at least one .apk file before publishing."
