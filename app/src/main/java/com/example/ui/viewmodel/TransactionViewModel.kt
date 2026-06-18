@@ -243,6 +243,23 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     fun resetUpdateState() {
         _updateState.value = com.example.data.update.UpdateState.Idle
     }
+
+    fun downloadAndInstallUpdate(context: android.content.Context, apkUrl: String) {
+        viewModelScope.launch {
+            try {
+                _updateState.value = com.example.data.update.UpdateState.Downloading(0)
+                val apkFile = com.example.data.update.UpdateManager.downloadApk(context, apkUrl) { progress ->
+                    _updateState.value = com.example.data.update.UpdateState.Downloading(progress)
+                }
+                _updateState.value = com.example.data.update.UpdateState.ReadyToInstall(apkFile)
+                com.example.data.update.UpdateManager.installApk(context, apkFile)
+            } catch (e: java.lang.Exception) {
+                _updateState.value = com.example.data.update.UpdateState.Error(
+                    "Lỗi khi tải bản cập nhật: ${e.localizedMessage ?: "Lỗi không xác định"}"
+                )
+            }
+        }
+    }
 }
 
 class TransactionViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

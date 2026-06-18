@@ -374,8 +374,6 @@ fun ProfileTab(viewModel: TransactionViewModel) {
 
         // --- IN-APP UPDATE FOR NON-PLAY STORE APPS ---
         val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-        var showUrlConfigDialog by remember { mutableStateOf(false) }
-        var inputUrlText by remember { mutableStateOf(UpdateManager.getUpdateUrl(context)) }
 
         Card(
             modifier = Modifier
@@ -386,7 +384,7 @@ fun ProfileTab(viewModel: TransactionViewModel) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "CẬP NHẬT ỨNG DỤNG (XƯỞNG NGOÀI GOOGLE PLAY)",
+                    text = "CẬP NHẬT ỨNG DỤNG",
                     color = WhiteOpacity50,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -401,54 +399,23 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Địa chỉ Server JSON: ${UpdateManager.getUpdateUrl(context)}",
-                    color = WhiteOpacity50,
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Button(
+                    onClick = { viewModel.checkForUpdates(context) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SoftOrangeContainer,
+                        contentColor = OrangeHighlight
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Button(
-                        onClick = { viewModel.checkForUpdates(context) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = SoftOrangeContainer,
-                            contentColor = OrangeHighlight
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1.3f)
-                    ) {
-                        Text(
-                            text = "Kiểm tra cập nhật 🚀",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Button(
-                        onClick = { showUrlConfigDialog = true },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0x22FFFFFF),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = "Sửa Server ⚙️",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = "Kiểm tra cập nhật 🚀",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -489,6 +456,92 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                     }
                 }
             }
+        }
+
+        // 1.5. UPDATE STATE: DOWNLOADING DIALOG WITH PROGRESS BAR
+        if (updateState is UpdateState.Downloading) {
+            val progress = (updateState as UpdateState.Downloading).progress
+            Dialog(
+                onDismissRequest = {},
+                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
+                    colors = CardDefaults.cardColors(containerColor = SolidCardBg),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            progress = progress / 100f,
+                            color = DeepOrangePrimary,
+                            trackColor = WhiteOpacity20
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text(
+                            text = "Đang tải bản cập nhật... $progress%",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        LinearProgressIndicator(
+                            progress = progress / 100f,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = DeepOrangePrimary,
+                            trackColor = WhiteOpacity10
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Vui lòng giữ ứng dụng mở",
+                            color = WhiteOpacity50,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        // 1.8. UPDATE STATE: READY TO INSTALL DIALOG
+        if (updateState is UpdateState.ReadyToInstall) {
+            val apkFile = (updateState as UpdateState.ReadyToInstall).apkFile
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                title = { Text("Tải về hoàn tất 📦", color = Color.White) },
+                text = { Text("Cài đặt bản cập nhật mới đã sẵn sàng. Hãy bấm tiếp tục để cài đặt.", color = WhiteOpacity70) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            UpdateManager.installApk(context, apkFile)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("BẮT ĐẦU CÀI ĐẶT", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.resetUpdateState() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("HỦY")
+                    }
+                },
+                containerColor = SolidCardBg,
+                textContentColor = Color.White
+            )
         }
 
         // 2. UPDATE STATE: UPDATE AVAILABLE DIALOG
@@ -604,15 +657,7 @@ fun ProfileTab(viewModel: TransactionViewModel) {
 
                                 Button(
                                     onClick = {
-                                        try {
-                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.apkUrl))
-                                            context.startActivity(intent)
-                                        } catch (e: Exception) {
-                                            // Handle error
-                                        }
-                                        if (!info.forceUpdate) {
-                                            viewModel.resetUpdateState()
-                                        }
+                                        viewModel.downloadAndInstallUpdate(context, info.apkUrl)
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = DeepOrangePrimary,
@@ -621,7 +666,7 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.weight(1.2f)
                                 ) {
-                                    Text("Cập Nhật Ngay 🚀", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Tải & Cập Nhật 🚀", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 }
                             }
                         }
@@ -650,7 +695,7 @@ fun ProfileTab(viewModel: TransactionViewModel) {
             )
         }
 
-        // 4. UPDATE STATE: ERROR DIALOG WITH SHORTCUT TO ADJUST CHECK SERVER
+        // 4. UPDATE STATE: ERROR DIALOG
         if (updateState is UpdateState.Error) {
             val errorMsg = (updateState as UpdateState.Error).message
             AlertDialog(
@@ -658,7 +703,7 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                 title = { Text("Kiểm Tra Cập Nhật Lỗi ⚠️", color = Color.White) },
                 text = { 
                     Column {
-                        Text("Không thể kết nối đến máy chủ cấu hình cập nhật. Vui lòng kiểm tra lại kết nối mạng hoặc đổi địa chỉ server.", color = WhiteOpacity70)
+                        Text("Không thể hoàn tất kiểm tra hoặc tải cập nhật ứng dụng. Vui lòng thử lại sau.", color = WhiteOpacity70)
                         Spacer(modifier = Modifier.height(10.dp))
                         Text("Chi tiết lỗi:", color = OrangeHighlight, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         Text(errorMsg, color = ErrorRed, fontSize = 11.sp, maxLines = 3)
@@ -669,11 +714,11 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                         TextButton(
                             onClick = { 
                                 viewModel.resetUpdateState()
-                                showUrlConfigDialog = true 
+                                viewModel.checkForUpdates(context)
                             },
                             colors = ButtonDefaults.textButtonColors(contentColor = OrangeHighlight)
                         ) {
-                            Text("ĐỔI SERVER", fontWeight = FontWeight.Bold)
+                            Text("THỬ LẠI", fontWeight = FontWeight.Bold)
                         }
                         Button(
                             onClick = { viewModel.resetUpdateState() },
@@ -682,69 +727,6 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                         ) {
                             Text("ĐÓNG")
                         }
-                    }
-                },
-                containerColor = SolidCardBg,
-                textContentColor = Color.White
-            )
-        }
-
-        // 5. SERVER CONFIGURATION DIALOG
-        if (showUrlConfigDialog) {
-            AlertDialog(
-                onDismissRequest = { showUrlConfigDialog = false },
-                title = { Text("Cấu Hình Server Cập Nhật ⚙️", color = Color.White) },
-                text = { 
-                    Column {
-                        Text(
-                            text = "Nhập địa chỉ JSON chứa thông tin bản cập nhật mới nhất (versionCode, versionName, updateLog, apkUrl). Bạn có thể tự lưu file JSON này lên Github raw để tự cập nhật app ngoại tuyến.",
-                            color = WhiteOpacity70,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = inputUrlText,
-                            onValueChange = { inputUrlText = it },
-                            placeholder = { Text("https://example.com/update.json", color = WhiteOpacity50) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = DeepOrangePrimary,
-                                unfocusedBorderColor = WhiteOpacity20,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        TextButton(
-                            onClick = { 
-                                inputUrlText = UpdateManager.DEFAULT_UPDATE_URL 
-                            }
-                        ) {
-                            Text("Dùng URL Mẫu (Mặc Định)", color = OrangeHighlight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (inputUrlText.isNotBlank()) {
-                                UpdateManager.saveUpdateUrl(context, inputUrlText)
-                            }
-                            showUrlConfigDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = DeepOrangePrimary, contentColor = Color.Black),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("LƯU LẠI", fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showUrlConfigDialog = false },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-                    ) {
-                        Text("HỦY")
                     }
                 },
                 containerColor = SolidCardBg,
