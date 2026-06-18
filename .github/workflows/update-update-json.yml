@@ -1,0 +1,77 @@
+name: Update update.json
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build update metadata
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+        run: |
+          set -euo pipefail
+
+          version_name="${TAG_NAME#v}"
+          # Version code format: MAJOR * 1_000_000 + MINOR * 1_000 + PATCH
+          if [[ "${version_name}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            version_code="$((major * 1000000 + minor * 1000 + patch))"
+          elif [[ "${version_name}" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            version_code="$((major * 1000000 + minor * 1000))"
+          elif [[ "${version_name}" =~ ^([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            version_code="$((major * 1000000))"
+          else
+            echo "Invalid tag format '${TAG_NAME}'. Use vMAJOR.MINOR.PATCH, vMAJOR.MINOR, or vMAJOR."
+            exit 1
+          fi
+
+          apk_url="$(jq -r '.release.assets[] | select(.name | test("\\.apk$")) | .browser_download_url' "$GITHUB_EVENT_PATH" | head -n1)"
+          if [ -z "${apk_url}" ] || [ "${apk_url}" = "null" ]; then
+            echo "No APK asset found in this release. Attach at least one .apk file before publishing."
+            exit 1
+          fi
+
+          jq -n \
+            --argjson versionCode "${version_code}" \
+            --arg versionName "${version_name}" \
+            --arg updateLog "${RELEASE_BODY}" \
+            --arg apkUrl "${apk_url}" \
+            --argjson forceUpdate false \
+            '{
+              versionCode: $versionCode,
+              versionName: $versionName,
+              updateLog: $updateLog,
+              apkUrl: $apkUrl,
+              forceUpdate: $forceUpdate
+            }' > update.json
+
+      - name: Commit update.json
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- update.json; then
+            echo "No update to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add update.json
+          git commit -m "chore: update update.json for ${TAG_NAME}"
+          git push
