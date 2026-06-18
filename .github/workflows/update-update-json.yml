@@ -59,6 +59,8 @@ jobs:
             }' > update.json
 
       - name: Commit update.json
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
           if git diff --quiet -- update.json; then
