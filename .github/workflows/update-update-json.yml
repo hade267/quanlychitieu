@@ -3,6 +3,25 @@ name: Update update.json
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v1.2.3)"
+        required: true
+        type: string
+      release_body:
+        description: "Update log content"
+        required: false
+        type: string
+      apk_url:
+        description: "Direct APK URL (optional for manual run)"
+        required: false
+        type: string
+      force_update:
+        description: "Force update for clients"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -16,10 +35,17 @@ jobs:
 
       - name: Build update metadata
         env:
-          TAG_NAME: ${{ github.event.release.tag_name }}
-          RELEASE_BODY: ${{ github.event.release.body }}
+          TAG_NAME: ${{ github.event.release.tag_name || github.event.inputs.tag_name }}
+          RELEASE_BODY: ${{ github.event.release.body || github.event.inputs.release_body || '' }}
+          INPUT_APK_URL: ${{ github.event.inputs.apk_url || '' }}
+          FORCE_UPDATE_INPUT: ${{ github.event.inputs.force_update || 'false' }}
         run: |
           set -euo pipefail
+
+          if [ -z "${TAG_NAME}" ]; then
+            echo "TAG_NAME is required."
+            exit 1
+          fi
 
           version_name="${TAG_NAME#v}"
           # Version code format: MAJOR * 1_000_000 + MINOR * 1_000 + PATCH
@@ -40,7 +66,10 @@ jobs:
             exit 1
           fi
 
-          apk_url="$(jq -r '.release.assets[] | select(.name | test("\\.apk$")) | .browser_download_url' "$GITHUB_EVENT_PATH" | head -n1)"
+          apk_url="${INPUT_APK_URL}"
+          if [ -z "${apk_url}" ]; then
+            apk_url="$(jq -r '.release.assets[] | select(.name | test("\\.apk$")) | .browser_download_url' "$GITHUB_EVENT_PATH" | head -n1)"
+          fi
           if [ -z "${apk_url}" ] || [ "${apk_url}" = "null" ]; then
             echo "No APK asset found in this release. Attach at least one .apk file before publishing."
             exit 1
@@ -51,18 +80,18 @@ jobs:
             --arg versionName "${version_name}" \
             --arg updateLog "${RELEASE_BODY}" \
             --arg apkUrl "${apk_url}" \
-            --argjson forceUpdate false \
+            --arg forceUpdate "${FORCE_UPDATE_INPUT}" \
             '{
               versionCode: $versionCode,
               versionName: $versionName,
               updateLog: $updateLog,
               apkUrl: $apkUrl,
-              forceUpdate: $forceUpdate
+              forceUpdate: ($forceUpdate == "true")
             }' > update.json
 
       - name: Commit update.json
         env:
-          TAG_NAME: ${{ github.event.release.tag_name }}
+          TAG_NAME: ${{ github.event.release.tag_name || github.event.inputs.tag_name }}
         run: |
           set -euo pipefail
           if git diff --quiet -- update.json; then
