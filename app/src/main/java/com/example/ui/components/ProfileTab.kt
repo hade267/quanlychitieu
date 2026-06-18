@@ -44,6 +44,28 @@ fun ProfileTab(viewModel: TransactionViewModel) {
     val sharedPrefs = remember { context.getSharedPreferences("velocity_ledger_prefs", Context.MODE_PRIVATE) }
     val ledgerName = sharedPrefs.getString("ledger_name", "Quản lý chi tiêu") ?: "Quản lý chi tiêu"
 
+    val currentVersionName = remember(context) {
+        try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            pInfo.versionName ?: "1.0"
+        } catch (e: Exception) {
+            "1.0"
+        }
+    }
+    val currentVersionCode = remember(context) {
+        try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                pInfo.longVersionCode.toInt()
+            } else {
+                @Suppress("DEPRECATION")
+                pInfo.versionCode
+            }
+        } catch (e: Exception) {
+            1
+        }
+    }
+
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
     
@@ -394,7 +416,7 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Phiên bản hiện tại: 1.0 (Build #1)",
+                    text = "Phiên bản hiện tại: $currentVersionName (Build #$currentVersionCode)",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
@@ -420,319 +442,6 @@ fun ProfileTab(viewModel: TransactionViewModel) {
             }
         }
 
-        // 1. UPDATE STATE: CHECKING DIALOG
-        if (updateState is UpdateState.Checking) {
-            Dialog(
-                onDismissRequest = {},
-                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
-                    colors = CardDefaults.cardColors(containerColor = SolidCardBg),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(color = DeepOrangePrimary)
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Text(
-                            text = "Đang kiểm tra cập nhật...",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Vui lòng đợi giây lát",
-                            color = WhiteOpacity50,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-
-        // 1.5. UPDATE STATE: DOWNLOADING DIALOG WITH PROGRESS BAR
-        if (updateState is UpdateState.Downloading) {
-            val progress = (updateState as UpdateState.Downloading).progress
-            Dialog(
-                onDismissRequest = {},
-                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
-                    colors = CardDefaults.cardColors(containerColor = SolidCardBg),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(
-                            progress = progress / 100f,
-                            color = DeepOrangePrimary,
-                            trackColor = WhiteOpacity20
-                        )
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Text(
-                            text = "Đang tải bản cập nhật... $progress%",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        LinearProgressIndicator(
-                            progress = progress / 100f,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            color = DeepOrangePrimary,
-                            trackColor = WhiteOpacity10
-                        )
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Vui lòng giữ ứng dụng mở",
-                            color = WhiteOpacity50,
-                            fontSize = 11.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-
-        // 1.8. UPDATE STATE: READY TO INSTALL DIALOG
-        if (updateState is UpdateState.ReadyToInstall) {
-            val apkFile = (updateState as UpdateState.ReadyToInstall).apkFile
-            AlertDialog(
-                onDismissRequest = { viewModel.resetUpdateState() },
-                title = { Text("Tải về hoàn tất 📦", color = Color.White) },
-                text = { Text("Cài đặt bản cập nhật mới đã sẵn sàng. Hãy bấm tiếp tục để cài đặt.", color = WhiteOpacity70) },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            UpdateManager.installApk(context, apkFile)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen, contentColor = Color.Black),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("BẮT ĐẦU CÀI ĐẶT", fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { viewModel.resetUpdateState() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-                    ) {
-                        Text("HỦY")
-                    }
-                },
-                containerColor = SolidCardBg,
-                textContentColor = Color.White
-            )
-        }
-
-        // 2. UPDATE STATE: UPDATE AVAILABLE DIALOG
-        if (updateState is UpdateState.UpdateAvailable) {
-            val info = (updateState as UpdateState.UpdateAvailable).info
-            Dialog(
-                onDismissRequest = { if (!info.forceUpdate) viewModel.resetUpdateState() },
-                properties = DialogProperties(
-                    dismissOnBackPress = !info.forceUpdate,
-                    dismissOnClickOutside = !info.forceUpdate,
-                    usePlatformDefaultWidth = false
-                )
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xCC000000))
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, DeepOrangePrimary.copy(alpha = 0.5f), RoundedCornerShape(24.dp)),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF141720)),
-                        shape = RoundedCornerShape(24.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(24.dp)) {
-                            Text(
-                                text = "✨ BẢN CẬP NHẬT MỚI!",
-                                color = OrangeHighlight,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.sp
-                            )
-                            
-                            Spacer(modifier = Modifier.height(10.dp))
-                            
-                            Text(
-                                text = "Phiên bản mới: v${info.versionName}",
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            
-                            if (info.forceUpdate) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(ErrorRed.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text("BẮT BUỘC CẬP NHẬT ⚠️", color = ErrorRed, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Text(
-                                text = "NỘI DUNG CẬP NHẬT:",
-                                color = WhiteOpacity50,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 160.dp)
-                                    .border(1.dp, GlassBorder, RoundedCornerShape(12.dp)),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF090B0F)),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(14.dp)
-                                        .verticalScroll(rememberScrollState())
-                                ) {
-                                    Text(
-                                        text = info.updateLog.ifEmpty { "Không có ghi chú phiên bản nào được cung cấp." },
-                                        color = WhiteOpacity70,
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                if (!info.forceUpdate) {
-                                    Button(
-                                        onClick = { viewModel.resetUpdateState() },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0x1BFFFFFF),
-                                            contentColor = Color.White
-                                        ),
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text("Hủy", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    }
-                                }
-
-                                Button(
-                                    onClick = {
-                                        viewModel.downloadAndInstallUpdate(context, info.apkUrl)
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = DeepOrangePrimary,
-                                        contentColor = Color.Black
-                                    ),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1.2f)
-                                ) {
-                                    Text("Tải & Cập Nhật 🚀", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. UPDATE STATE: UP TO DATE DIALOG
-        if (updateState is UpdateState.UpToDate) {
-            AlertDialog(
-                onDismissRequest = { viewModel.resetUpdateState() },
-                title = { Text("Ứng dụng mới nhất! 🎉", color = Color.White) },
-                text = { Text("Bạn đang sử dụng phiên bản Quản lý chi tiêu mới nhất (v1.0). Không cần cập nhật thêm vào lúc này.", color = WhiteOpacity70) },
-                confirmButton = {
-                    Button(
-                        onClick = { viewModel.resetUpdateState() },
-                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen, contentColor = Color.Black),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("XÁC NHẬN", fontWeight = FontWeight.Bold)
-                    }
-                },
-                containerColor = SolidCardBg,
-                textContentColor = Color.White
-            )
-        }
-
-        // 4. UPDATE STATE: ERROR DIALOG
-        if (updateState is UpdateState.Error) {
-            val errorMsg = (updateState as UpdateState.Error).message
-            AlertDialog(
-                onDismissRequest = { viewModel.resetUpdateState() },
-                title = { Text("Kiểm Tra Cập Nhật Lỗi ⚠️", color = Color.White) },
-                text = { 
-                    Column {
-                        Text("Không thể hoàn tất kiểm tra hoặc tải cập nhật ứng dụng. Vui lòng thử lại sau.", color = WhiteOpacity70)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text("Chi tiết lỗi:", color = OrangeHighlight, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Text(errorMsg, color = ErrorRed, fontSize = 11.sp, maxLines = 3)
-                    }
-                },
-                confirmButton = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = { 
-                                viewModel.resetUpdateState()
-                                viewModel.checkForUpdates(context)
-                            },
-                            colors = ButtonDefaults.textButtonColors(contentColor = OrangeHighlight)
-                        ) {
-                            Text("THỬ LẠI", fontWeight = FontWeight.Bold)
-                        }
-                        Button(
-                            onClick = { viewModel.resetUpdateState() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray, contentColor = Color.White),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("ĐÓNG")
-                        }
-                    }
-                },
-                containerColor = SolidCardBg,
-                textContentColor = Color.White
-            )
-        }
     }
 }
 

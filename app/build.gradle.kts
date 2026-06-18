@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.velocityledger.xpdvst"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1003000
-    versionName = "1.3.0"
+    versionCode = 1004000
+    versionName = "1.4.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

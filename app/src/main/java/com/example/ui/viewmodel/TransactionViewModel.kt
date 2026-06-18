@@ -227,6 +227,27 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val _updateState = MutableStateFlow<com.example.data.update.UpdateState>(com.example.data.update.UpdateState.Idle)
     val updateState: StateFlow<com.example.data.update.UpdateState> = _updateState.asStateFlow()
 
+    fun checkForUpdatesOnLaunch(context: android.content.Context) {
+        viewModelScope.launch {
+            try {
+                val info = com.example.data.update.UpdateManager.checkUpdate(context)
+                val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                val currentVersionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    pInfo.longVersionCode.toInt()
+                } else {
+                    @Suppress("DEPRECATION")
+                    pInfo.versionCode
+                }
+
+                if (info.versionCode > currentVersionCode) {
+                    _updateState.value = com.example.data.update.UpdateState.UpdateAvailable(info)
+                }
+            } catch (e: Exception) {
+                // Ignore silent update errors on app launch
+            }
+        }
+    }
+
     fun checkForUpdates(context: android.content.Context) {
         viewModelScope.launch {
             _updateState.value = com.example.data.update.UpdateState.Checking
