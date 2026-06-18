@@ -276,19 +276,64 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
 
     fun insertShippingOrder(order: ShippingOrder) {
         viewModelScope.launch {
-            shippingRepository.insert(order)
+            val insertedId = shippingRepository.insert(order)
+            val updatedOrder = order.copy(id = insertedId.toInt())
+            syncShippingOrderTransaction(updatedOrder)
         }
     }
 
     fun updateShippingOrder(order: ShippingOrder) {
         viewModelScope.launch {
             shippingRepository.update(order)
+            syncShippingOrderTransaction(order)
         }
     }
 
     fun deleteShippingOrder(order: ShippingOrder) {
         viewModelScope.launch {
             shippingRepository.delete(order)
+            removeShippingOrderTransaction(order.id)
+        }
+    }
+
+    private suspend fun syncShippingOrderTransaction(order: ShippingOrder) {
+        val txs = repository.allTransactions.first()
+        val matchingTx = txs.find { it.note == "SHIPPING_ORDER_${order.id}" }
+        
+        if (order.status == "DA_GIAO") {
+            val shortAddress = if (order.address.length > 25) {
+                order.address.take(22) + "..."
+            } else {
+                order.address
+            }
+            if (matchingTx == null) {
+                repository.insert(Transaction(
+                    title = "Phí ship: $shortAddress",
+                    amount = order.shippingFee,
+                    dateMillis = order.timestamp,
+                    category = "Thu nhập giao hàng",
+                    type = "INCOME",
+                    note = "SHIPPING_ORDER_${order.id}"
+                ))
+            } else {
+                repository.update(matchingTx.copy(
+                    title = "Phí ship: $shortAddress",
+                    amount = order.shippingFee,
+                    dateMillis = order.timestamp
+                ))
+            }
+        } else {
+            if (matchingTx != null) {
+                repository.delete(matchingTx)
+            }
+        }
+    }
+
+    private suspend fun removeShippingOrderTransaction(orderId: Int) {
+        val txs = repository.allTransactions.first()
+        val matchingTx = txs.find { it.note == "SHIPPING_ORDER_${orderId}" }
+        if (matchingTx != null) {
+            repository.delete(matchingTx)
         }
     }
 }

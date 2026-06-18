@@ -34,6 +34,7 @@ import com.example.ui.components.*
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.TransactionViewModel
 import com.example.ui.viewmodel.TransactionViewModelFactory
+import com.example.data.model.ShippingOrder
 import java.util.Calendar
 
 import androidx.compose.ui.platform.LocalContext
@@ -81,6 +82,7 @@ fun VelocityLedgerApp(viewModel: TransactionViewModel) {
     val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
     val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
     val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
+    val allShippingOrders by viewModel.allShippingOrders.collectAsStateWithLifecycle()
 
     if (showWelcomeDialog) {
         var tempName by remember { mutableStateOf("Velocity Ledger") }
@@ -286,11 +288,12 @@ fun VelocityLedgerApp(viewModel: TransactionViewModel) {
             AddTransactionDialog(
                 initialDateMillis = calendar.timeInMillis,
                 dynamicCategories = allCategories,
+                shippingOrders = allShippingOrders,
                 onDismiss = { showAddDialog = false },
                 onCreateCategory = { name, emoji, colorHex, type ->
                     viewModel.insertCategory(name, emoji, colorHex, type)
                 },
-                onSave = { title, amount, isIncome, category, note ->
+                onSave = { title, amount, isIncome, category, note, createShip, shipAddress, shipPhone, shipDistance, shipFee ->
                     showAddDialog = false
                     val sign = if (isIncome) 1.0 else -1.0
                     val finalAmount = amount * sign
@@ -309,6 +312,22 @@ fun VelocityLedgerApp(viewModel: TransactionViewModel) {
                         type = if (isIncome) "INCOME" else "EXPENSE",
                         note = note
                     )
+
+                    if (createShip) {
+                        viewModel.insertShippingOrder(
+                            ShippingOrder(
+                                id = 0,
+                                address = shipAddress,
+                                phoneNumber = shipPhone,
+                                orderAmount = amount, // Using transaction amount as COD orderAmount
+                                distance = shipDistance,
+                                shippingFee = shipFee,
+                                status = "DANG_GIAO", // Default is "Đang giao"
+                                timestamp = saveCalendar.timeInMillis,
+                                note = note
+                            )
+                        )
+                    }
                 }
             )
         }

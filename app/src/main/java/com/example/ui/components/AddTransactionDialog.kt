@@ -30,21 +30,78 @@ import com.example.ui.theme.*
 import java.util.Calendar
 
 import com.example.data.model.CategoryEntity
+import com.example.data.model.ShippingOrder
+import android.widget.Toast
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionDialog(
     initialDateMillis: Long,
     dynamicCategories: List<CategoryEntity> = emptyList(),
+    shippingOrders: List<ShippingOrder> = emptyList(),
     onDismiss: () -> Unit,
     onCreateCategory: (name: String, emoji: String, colorHex: String, type: String) -> Unit = { _, _, _, _ -> },
-    onSave: (title: String, amount: Double, isIncome: Boolean, category: String, note: String) -> Unit
+    onSave: (
+        title: String,
+        amount: Double,
+        isIncome: Boolean,
+        category: String,
+        note: String,
+        createShippingOrder: Boolean,
+        shipAddress: String,
+        shipPhone: String,
+        shipDistance: Double,
+        shipFee: Double
+    ) -> Unit
 ) {
     var isIncome by remember { mutableStateOf(false) }
     var amountString by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var showQuickAdd by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    var createShippingOrder by remember { mutableStateOf(false) }
+    var shipAddress by remember { mutableStateOf("") }
+    var shipPhone by remember { mutableStateOf("") }
+    var shipDistanceText by remember { mutableStateOf("") }
+    val shipDistanceVal = shipDistanceText.toDoubleOrNull() ?: 0.0
+
+    // Auto calculated shipping fee based on distance
+    val baseShipFee = remember(shipDistanceVal) {
+        when {
+            shipDistanceVal <= 0.0 -> 0.0
+            shipDistanceVal <= 2.0 -> 10000.0
+            shipDistanceVal <= 4.0 -> 15000.0
+            shipDistanceVal <= 6.0 -> 20000.0
+            shipDistanceVal <= 8.0 -> 25000.0
+            shipDistanceVal <= 10.0 -> 30000.0
+            shipDistanceVal <= 15.0 -> shipDistanceVal * 4000.0
+            else -> shipDistanceVal * 5000.0
+        }
+    }
+
+    var shipFeeText by remember { mutableStateOf("") }
+    var isManualShipFee by remember { mutableStateOf(false) }
+
+    LaunchedEffect(baseShipFee) {
+        if (!isManualShipFee) {
+            shipFeeText = if (baseShipFee == 0.0) "" else baseShipFee.toInt().toString()
+        }
+    }
+
+    val suggestedOrders = remember(shipAddress, shipPhone) {
+        if (shipAddress.isBlank() && shipPhone.isBlank()) {
+            emptyList()
+        } else {
+            shippingOrders.filter { order ->
+                (shipAddress.isNotBlank() && order.address.lowercase().contains(shipAddress.lowercase())) ||
+                (shipPhone.isNotBlank() && order.phoneNumber.contains(shipPhone))
+            }.distinctBy { "${it.address.trim().lowercase()}_${it.phoneNumber.trim()}" }.take(3)
+        }
+    }
     
     val categoriesList = if (dynamicCategories.isNotEmpty()) {
         dynamicCategories.filter { cat ->
@@ -588,13 +645,296 @@ fun AddTransactionDialog(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
+                    // Quick Shipping toggle row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF0C0E12))
+                            .border(
+                                width = 1.dp,
+                                color = if (createShippingOrder) DeepOrangePrimary.copy(alpha = 0.5f) else WhiteOpacity10,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable { createShippingOrder = !createShippingOrder }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("⚡", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Đồng thời tạo đơn ship nhanh",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Từ thông tin giao dịch này",
+                                    color = WhiteOpacity50,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                        Checkbox(
+                            checked = createShippingOrder,
+                            onCheckedChange = { createShippingOrder = it },
+                            colors = CheckboxDefaults.colors(checkedColor = DeepOrangePrimary)
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = createShippingOrder,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFF090B0F))
+                                .border(1.dp, DeepOrangePrimary.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "THÔNG TIN ĐƠN SHIP NHANH",
+                                color = OrangeHighlight,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+
+                            // SUGGESTIONS PANEL
+                            if (suggestedOrders.isNotEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = "Gợi ý từ lịch sử ship (Bấm để điền nhanh):",
+                                        color = SuccessGreen,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    suggestedOrders.forEach { order ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color.White.copy(alpha = 0.05f))
+                                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    shipAddress = order.address
+                                                    shipPhone = order.phoneNumber
+                                                    shipDistanceText = if (order.distance % 1.0 == 0.0) order.distance.toInt().toString() else order.distance.toString()
+                                                    shipFeeText = order.shippingFee.toInt().toString()
+                                                    isManualShipFee = true
+                                                }
+                                                .padding(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "📍 ${order.address} (${order.phoneNumber})",
+                                                color = Color.White.copy(alpha = 0.9f),
+                                                fontSize = 11.sp,
+                                                maxLines = 1,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "${order.distance}km",
+                                                color = OrangeHighlight,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 1. Địa chỉ giao
+                            OutlinedTextField(
+                                value = shipAddress,
+                                onValueChange = { shipAddress = it },
+                                label = { Text("Địa chỉ nhận hàng (Ví dụ: 123 Nguyễn Trãi)", color = WhiteOpacity70) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = DeepOrangePrimary,
+                                    unfocusedBorderColor = WhiteOpacity10,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            // 2. Số điện thoại
+                            OutlinedTextField(
+                                value = shipPhone,
+                                onValueChange = { shipPhone = it },
+                                label = { Text("Số điện thoại khách hàng", color = WhiteOpacity70) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = DeepOrangePrimary,
+                                    unfocusedBorderColor = WhiteOpacity10,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            // 3. Khoảng cách & Quick presets
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "Khoảng cách (km):",
+                                    color = WhiteOpacity50,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                OutlinedTextField(
+                                    value = shipDistanceText,
+                                    onValueChange = { input ->
+                                        // Allow digits and single dot
+                                        val filtered = input.filter { it.isDigit() || it == '.' }
+                                        shipDistanceText = filtered
+                                    },
+                                    placeholder = { Text("Nhập km (Ví dụ: 3.5)", color = Color.White.copy(alpha = 0.3f)) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = DeepOrangePrimary,
+                                        unfocusedBorderColor = WhiteOpacity10,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                val distancePresets = listOf(1.0, 2.0, 3.0, 5.0, 8.0, 10.0, 15.0, 20.0)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    distancePresets.forEach { d ->
+                                        val isSelected = shipDistanceText == d.toString() || shipDistanceText.toDoubleOrNull() == d
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(
+                                                    if (isSelected) DeepOrangePrimary.copy(alpha = 0.25f) else Color(0x0AFFFFFF)
+                                                )
+                                                .border(
+                                                    1.dp,
+                                                    if (isSelected) DeepOrangePrimary else WhiteOpacity10,
+                                                    RoundedCornerShape(6.dp)
+                                                )
+                                                .clickable {
+                                                    shipDistanceText = if (d % 1.0 == 0.0) d.toInt().toString() else d.toString()
+                                                }
+                                                .padding(vertical = 6.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = if (d % 1.0 == 0.0) "${d.toInt()}k" else "${d}k",
+                                                color = if (isSelected) OrangeHighlight else Color.White,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 4. Phí Ship
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Phí ship dự tính (đ):",
+                                        color = WhiteOpacity50,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.clickable {
+                                            isManualShipFee = !isManualShipFee
+                                            if (!isManualShipFee) {
+                                                shipFeeText = if (baseShipFee == 0.0) "" else baseShipFee.toInt().toString()
+                                            }
+                                        }
+                                    ) {
+                                        Checkbox(
+                                            checked = isManualShipFee,
+                                            onCheckedChange = {
+                                                isManualShipFee = it
+                                                if (!isManualShipFee) {
+                                                    shipFeeText = if (baseShipFee == 0.0) "" else baseShipFee.toInt().toString()
+                                                }
+                                            },
+                                            colors = CheckboxDefaults.colors(checkedColor = DeepOrangePrimary),
+                                            modifier = Modifier.scale(0.8f)
+                                        )
+                                        Text("Sửa thủ công", color = WhiteOpacity70, fontSize = 10.sp)
+                                    }
+                                }
+                                OutlinedTextField(
+                                    value = shipFeeText,
+                                    onValueChange = { 
+                                        shipFeeText = it.filter { c -> c.isDigit() }
+                                        isManualShipFee = true
+                                    },
+                                    placeholder = { Text("Ví dụ: 15000", color = Color.White.copy(alpha = 0.3f)) },
+                                    enabled = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = DeepOrangePrimary,
+                                        unfocusedBorderColor = WhiteOpacity10,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
                     // Submit Button
                     Button(
                         onClick = {
                             val cleanInput = amountString.filter { it.isDigit() }
                             val amount = cleanInput.toDoubleOrNull() ?: 0.0
                             if (amount > 0) {
-                                onSave(title, amount, isIncome, selectedCategory, note)
+                                if (createShippingOrder) {
+                                    if (shipAddress.isBlank()) {
+                                        Toast.makeText(context, "Vui lòng nhập địa chỉ giao hàng", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                }
+                                onSave(
+                                    title,
+                                    amount,
+                                    isIncome,
+                                    selectedCategory,
+                                    note,
+                                    createShippingOrder,
+                                    shipAddress,
+                                    shipPhone,
+                                    shipDistanceVal,
+                                    shipFeeText.toDoubleOrNull() ?: 0.0
+                                )
                             }
                         },
                         enabled = amountString.isNotBlank() && (amountString.filter { it.isDigit() }.toDoubleOrNull() ?: 0.0) > 0,

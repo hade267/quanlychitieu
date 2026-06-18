@@ -15,7 +15,7 @@ interface ShippingOrderDao {
     fun getAllShippingOrders(): Flow<List<ShippingOrder>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertShippingOrder(order: ShippingOrder)
+    suspend fun insertShippingOrder(order: ShippingOrder): Long
 
     @Update
     suspend fun updateShippingOrder(order: ShippingOrder)

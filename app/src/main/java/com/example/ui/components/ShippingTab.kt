@@ -61,8 +61,8 @@ fun ShippingTab(viewModel: TransactionViewModel) {
     // Computations for delivery dashboard summary
     val completedOrders = allOrders.filter { it.status == "DA_GIAO" }
     val totalShippingFeeEarned = completedOrders.sumOf { it.shippingFee }
-    val totalActiveCod = allOrders.filter { it.status == "DANG_GIAO" || it.status == "CHO_GIAO" }.sumOf { it.orderAmount }
-    val activeOrdersCount = allOrders.count { it.status == "DANG_GIAO" || it.status == "CHO_GIAO" }
+    val totalActiveCod = allOrders.filter { it.status == "DANG_GIAO" }.sumOf { it.orderAmount }
+    val activeOrdersCount = allOrders.count { it.status == "DANG_GIAO" }
 
     val currencyFormatter = remember { DecimalFormat("#,###") }
 
@@ -198,7 +198,6 @@ fun ShippingTab(viewModel: TransactionViewModel) {
                 // Scrollable Row status Filter Chips
                 val statusOptions = listOf(
                     "ALL" to "Tất cả",
-                    "CHO_GIAO" to "Chờ giao",
                     "DANG_GIAO" to "Đang giao",
                     "DA_GIAO" to "Đã giao",
                     "DA_HUY" to "Đã hủy"
@@ -298,6 +297,7 @@ fun ShippingTab(viewModel: TransactionViewModel) {
     if (showAddDialog) {
         AddEditShippingOrderDialog(
             order = null,
+            shippingOrders = allOrders,
             onDismiss = { showAddDialog = false },
             onSave = { newOrder ->
                 viewModel.insertShippingOrder(newOrder)
@@ -309,6 +309,7 @@ fun ShippingTab(viewModel: TransactionViewModel) {
     if (orderToEdit != null) {
         AddEditShippingOrderDialog(
             order = orderToEdit,
+            shippingOrders = allOrders,
             onDismiss = { orderToEdit = null },
             onSave = { updatedOrder ->
                 viewModel.updateShippingOrder(updatedOrder)
@@ -358,7 +359,6 @@ fun ShippingOrderCard(
     val timeFormatter = remember { SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault()) }
 
     val statusBadgeColor = when (order.status) {
-        "CHO_GIAO" -> Color(0xFFFFB300) // Rich Amber
         "DANG_GIAO" -> Color(0xFF29B6F6) // Sky Blue
         "DA_GIAO" -> SuccessGreen
         "DA_HUY" -> ErrorRed
@@ -366,7 +366,6 @@ fun ShippingOrderCard(
     }
 
     val statusText = when (order.status) {
-        "CHO_GIAO" -> "Chờ giao 🕒"
         "DANG_GIAO" -> "Đang giao 🏍️"
         "DA_GIAO" -> "Đã giao ✅"
         "DA_HUY" -> "Đã huỷ ❌"
@@ -638,26 +637,7 @@ fun ShippingOrderCard(
 
                 // Workflow status changes quick buttons
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (order.status == "CHO_GIAO") {
-                        TextButton(
-                            onClick = { onStatusChange("DA_HUY") },
-                            colors = ButtonDefaults.textButtonColors(contentColor = ErrorRed),
-                            modifier = Modifier.height(30.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
-                        ) {
-                            Text("Huỷ Đơn ❌", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-
-                        Button(
-                            onClick = { onStatusChange("DANG_GIAO") },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF29B6F6), contentColor = Color.Black),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(30.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp)
-                        ) {
-                            Text("Giao Đơn 🏍️", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-                        }
-                    } else if (order.status == "DANG_GIAO") {
+                    if (order.status == "DANG_GIAO") {
                         TextButton(
                             onClick = { onStatusChange("DA_HUY") },
                             colors = ButtonDefaults.textButtonColors(contentColor = ErrorRed),
@@ -679,7 +659,7 @@ fun ShippingOrderCard(
                     } else if (order.status == "DA_GIAO" || order.status == "DA_HUY") {
                         // Let users reactivate order if needed
                         TextButton(
-                            onClick = { onStatusChange("CHO_GIAO") },
+                            onClick = { onStatusChange("DANG_GIAO") },
                             colors = ButtonDefaults.textButtonColors(contentColor = WhiteOpacity70),
                             modifier = Modifier.height(30.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp)
@@ -698,12 +678,24 @@ fun ShippingOrderCard(
 @Composable
 fun AddEditShippingOrderDialog(
     order: ShippingOrder?,
+    shippingOrders: List<ShippingOrder> = emptyList(),
     onDismiss: () -> Unit,
     onSave: (ShippingOrder) -> Unit
 ) {
     val context = LocalContext.current
     var address by remember { mutableStateOf(order?.address ?: "") }
     var phoneNumber by remember { mutableStateOf(order?.phoneNumber ?: "") }
+
+    val suggestedOrders = remember(address, phoneNumber) {
+        if (address.isBlank() && phoneNumber.isBlank()) {
+            emptyList()
+        } else {
+            shippingOrders.filter { o ->
+                (address.isNotBlank() && o.address.lowercase().contains(address.lowercase())) ||
+                (phoneNumber.isNotBlank() && o.phoneNumber.contains(phoneNumber))
+            }.distinctBy { "${it.address.trim().lowercase()}_${it.phoneNumber.trim()}" }.take(3)
+        }
+    }
     var orderAmountText by remember { mutableStateOf(order?.orderAmount?.toInt()?.toString() ?: "") }
     var distanceText by remember { mutableStateOf(order?.distance?.toString() ?: "") }
     var note by remember { mutableStateOf(order?.note ?: "") }
@@ -828,6 +820,55 @@ fun AddEditShippingOrderDialog(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        if (suggestedOrders.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Gợi ý từ lịch sử ship (Bấm để điền nhanh):",
+                                    color = SuccessGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                suggestedOrders.forEach { o ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color.White.copy(alpha = 0.05f))
+                                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                address = o.address
+                                                phoneNumber = o.phoneNumber
+                                                distanceText = if (o.distance % 1.0 == 0.0) o.distance.toInt().toString() else o.distance.toString()
+                                                manualShippingFeeText = o.shippingFee.toInt().toString()
+                                                isManualShippingFee = true
+                                            }
+                                            .padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "📍 ${o.address} (${o.phoneNumber})",
+                                            color = Color.White.copy(alpha = 0.9f),
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "${o.distance} km",
+                                            color = OrangeHighlight,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         // 2. Số điện thoại & COD Row
                         Row(
@@ -1093,7 +1134,6 @@ fun AddEditShippingOrderDialog(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             val statusOpts = listOf(
-                                "CHO_GIAO" to "Chờ giao",
                                 "DANG_GIAO" to "Đang giao",
                                 "DA_GIAO" to "Đã giao",
                                 "DA_HUY" to "Đã huỷ"

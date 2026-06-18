@@ -11,7 +11,7 @@ data class ShippingOrder(
     val orderAmount: Double, // COD
     val distance: Double,     // km
     val shippingFee: Double,  // calculated or manual
-    val status: String,       // "CHO_GIAO" (Chờ giao), "DANG_GIAO" (Đang giao), "DA_GIAO" (Đã giao), "DA_HUY" (Đã huỷ)
+    val status: String,       // "DANG_GIAO" (Đang giao), "DA_GIAO" (Đã giao), "DA_HUY" (Đã huỷ)
     val timestamp: Long,
     val note: String = "",
     val surchargeNightSummer: Boolean = false,
