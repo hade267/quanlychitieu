@@ -1,7 +1,7 @@
 {
-  "versionCode": 1006000,
-  "versionName": "1.6.0",
-  "updateLog": "Cập nhật ứng dụng lên phiên bản 1.6.0 với các tùy chọn đặt trước (Khách đã CK) và Quán trả phí ship tiện dụng.",
-  "apkUrl": "https://github.com/hade267/quanlychitieu/releases/download/v1.6.0/com.hade.chitieushipper_1.6.0.apk",
+  "versionCode": 1006001,
+  "versionName": "1.6.1",
+  "updateLog": "",
+  "apkUrl": "https://github.com/hade267/quanlychitieu/releases/download/v1.6.1/com.hade.chitieushipper_1.6.1.apk",
   "forceUpdate": false
 }
