@@ -10,6 +10,21 @@ on:
         description: "Release tag (e.g. v1.2.3). Leave empty to use versionName."
         required: false
         type: string
+      store_password:
+        description: "Keystore Store Password"
+        required: false
+        default: "26072003"
+        type: string
+      key_password:
+        description: "Keystore Key Password"
+        required: false
+        default: "26072003"
+        type: string
+      key_alias:
+        description: "Keystore Key Alias"
+        required: false
+        default: "hadee"
+        type: string
 
 jobs:
   build:
@@ -118,18 +133,19 @@ jobs:
             echo "Decoding keystore from secret..."
             echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
           else
-            echo "No keystore secret found, creating debug keystore..."
-            keytool -genkey -v -keystore "$KEYSTORE_FILE" \
-              -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass android -keypass android \
-              -dname "CN=Android Debug,O=Android,C=US"
+            echo "No keystore secret found, creating release keystore with provided parameters..."
+            keytool -genkeypair -v -keystore "$KEYSTORE_FILE" \
+              -alias "${{ github.event.inputs.key_alias || secrets.KEY_ALIAS || 'hadee' }}" -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "${{ github.event.inputs.store_password || secrets.STORE_PASSWORD || '26072003' }}" -keypass "${{ github.event.inputs.key_password || secrets.KEY_PASSWORD || '26072003' }}" \
+              -dname "CN=Hadee,O=Hadee,C=VN"
           fi
 
       - name: Build Release APK
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || 'android' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'android' }}
+          STORE_PASSWORD: ${{ github.event.inputs.store_password || secrets.STORE_PASSWORD || '26072003' }}
+          KEY_PASSWORD: ${{ github.event.inputs.key_password || secrets.KEY_PASSWORD || '26072003' }}
+          KEY_ALIAS: ${{ github.event.inputs.key_alias || secrets.KEY_ALIAS || 'hadee' }}
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Rename and Prepare APK

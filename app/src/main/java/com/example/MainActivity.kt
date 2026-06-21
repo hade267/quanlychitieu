@@ -50,6 +50,7 @@ import android.content.Context
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.example.data.firebase.FirebaseManager.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {

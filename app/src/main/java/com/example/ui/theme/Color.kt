@@ -17,6 +17,7 @@ val SuccessGreen = Color(0xFF34D399)
 val WhiteOpacity90 = Color(0xE6FFFFFF)
 val WhiteOpacity70 = Color(0xB3FFFFFF)
 val WhiteOpacity50 = Color(0x80FFFFFF)
+val WhiteOpacity30 = Color(0x4DFFFFFF)
 val WhiteOpacity20 = Color(0x33FFFFFF)
 val WhiteOpacity10 = Color(0x1AFFFFFF)
 

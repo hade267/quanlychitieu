@@ -22,4 +22,7 @@ interface ShippingOrderDao {
 
     @Delete
     suspend fun deleteShippingOrder(order: ShippingOrder)
+
+    @Query("DELETE FROM shipping_orders")
+    suspend fun clearAllShippingOrders()
 }

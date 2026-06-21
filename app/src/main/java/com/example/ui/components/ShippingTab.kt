@@ -61,7 +61,7 @@ fun ShippingTab(viewModel: TransactionViewModel) {
     // Computations for delivery dashboard summary
     val completedOrders = allOrders.filter { it.status == "DA_GIAO" }
     val totalShippingFeeEarned = completedOrders.sumOf { it.shippingFee }
-    val totalActiveCod = allOrders.filter { it.status == "DANG_GIAO" }.sumOf { it.orderAmount }
+    val totalActiveCod = allOrders.filter { it.status == "DANG_GIAO" && !it.customerPrepaid }.sumOf { it.orderAmount }
     val activeOrdersCount = allOrders.count { it.status == "DANG_GIAO" }
 
     val currencyFormatter = remember { DecimalFormat("#,###") }
@@ -421,6 +421,45 @@ fun ShippingOrderCard(
                 overflow = TextOverflow.Ellipsis
             )
 
+            if (order.customerPrepaid || order.shopPaysShipping) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (order.customerPrepaid) {
+                        Box(
+                            modifier = Modifier
+                                .background(SuccessGreen.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                .border(1.dp, SuccessGreen.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "💳 Khách đã CK",
+                                color = SuccessGreen,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    if (order.shopPaysShipping) {
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFFFA000).copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                .border(1.dp, Color(0xFFFFA000).copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "🏪 Quán trả ship",
+                                color = Color(0xFFFFCC00),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(6.dp))
 
             Row(
@@ -512,12 +551,21 @@ fun ShippingOrderCard(
                     Column {
                         Text("TIỀN THU HỘ (COD)", color = WhiteOpacity50, fontSize = 9.sp)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "${currencyFormatter.format(order.orderAmount)} đ",
-                            color = IncomeBlue,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (order.customerPrepaid) {
+                            Text(
+                                text = "Đã CK trước (0 đ)",
+                                color = SuccessGreen,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Text(
+                                text = "${currencyFormatter.format(order.orderAmount)} đ",
+                                color = IncomeBlue,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Row(
@@ -528,12 +576,21 @@ fun ShippingOrderCard(
                         Column(horizontalAlignment = Alignment.End) {
                             Text("PHÍ SHIP (${order.distance}km)", color = WhiteOpacity50, fontSize = 9.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${currencyFormatter.format(order.shippingFee)} đ",
-                                color = OrangeHighlight,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            if (order.shopPaysShipping) {
+                                Text(
+                                    text = "Quán trả (0 đ)",
+                                    color = Color(0xFFFFB300),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Text(
+                                    text = "${currencyFormatter.format(order.shippingFee)} đ",
+                                    color = OrangeHighlight,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -551,7 +608,8 @@ fun ShippingOrderCard(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    val totalCollect = order.orderAmount + order.shippingFee
+                    val totalCollect = (if (order.customerPrepaid) 0.0 else order.orderAmount) + 
+                                       (if (order.shopPaysShipping) 0.0 else order.shippingFee)
                     Text(
                         text = "${currencyFormatter.format(totalCollect)} đ",
                         color = SuccessGreen,
@@ -711,6 +769,9 @@ fun AddEditShippingOrderDialog(
     var surchargeBusStation by remember { mutableStateOf(order?.surchargeBusStation ?: false) }
     // Weight Group: 0: <10, 1: 10-25, 2: 26-40, 3: 41-50
     var weightGroup by remember { mutableStateOf(order?.weightGroup ?: 0) }
+
+    var customerPrepaid by remember { mutableStateOf(order?.customerPrepaid ?: false) }
+    var shopPaysShipping by remember { mutableStateOf(order?.shopPaysShipping ?: false) }
 
     // Override mode for shipping fee
     var isManualShippingFee by remember { mutableStateOf(false) }
@@ -906,6 +967,95 @@ fun AddEditShippingOrderDialog(
                                 modifier = Modifier.weight(0.9f),
                                 singleLine = true
                             )
+                        }
+
+                        // 2.5 Phương thức thanh toán đặc biệt
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+                                .border(1.dp, WhiteOpacity10, RoundedCornerShape(12.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = "💳 PHƯƠNG THỨC THANH TOÁN ĐẶC BIỆT",
+                                color = OrangeHighlight,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { 
+                                        customerPrepaid = !customerPrepaid 
+                                        if (customerPrepaid) {
+                                            orderAmountText = "0"
+                                        }
+                                    },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Khách đặt đã chuyển khoản trước",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "Phần tiền hàng (COD) sẽ đặt về 0đ",
+                                        color = WhiteOpacity50,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                Switch(
+                                    checked = customerPrepaid,
+                                    onCheckedChange = { 
+                                        customerPrepaid = it 
+                                        if (it) {
+                                            orderAmountText = "0"
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = SuccessGreen,
+                                        checkedTrackColor = SuccessGreen.copy(alpha = 0.3f)
+                                    )
+                                )
+                            }
+                            
+                            Divider(color = WhiteOpacity10)
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { shopPaysShipping = !shopPaysShipping },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Quán chịu trách nhiệm trả ship",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "Không thu thêm tiền phí ship từ khách",
+                                        color = WhiteOpacity50,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                Switch(
+                                    checked = shopPaysShipping,
+                                    onCheckedChange = { shopPaysShipping = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color(0xFFFFA000),
+                                        checkedTrackColor = Color(0xFFFFA000).copy(alpha = 0.3f)
+                                    )
+                                )
+                            }
                         }
 
                         // 3. Khoảng cách (Km)
@@ -1255,7 +1405,9 @@ fun AddEditShippingOrderDialog(
                                     surchargeDoorToDoor = surchargeDoorToDoor,
                                     surchargeBuyOnBehalf = surchargeBuyOnBehalf,
                                     surchargeBusStation = surchargeBusStation,
-                                    weightGroup = weightGroup
+                                    weightGroup = weightGroup,
+                                    customerPrepaid = customerPrepaid,
+                                    shopPaysShipping = shopPaysShipping
                                 )
                                 onSave(finalOrder)
                             },

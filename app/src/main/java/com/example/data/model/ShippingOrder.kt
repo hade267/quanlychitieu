@@ -21,5 +21,7 @@ data class ShippingOrder(
     val surchargeDoorToDoor: Boolean = false,
     val surchargeBuyOnBehalf: Boolean = false,
     val surchargeBusStation: Boolean = false,
-    val weightGroup: Int = 0  // 0: <10kg, 1: 10-25kg, 2: 26-40kg, 3: 41-50kg
+    val weightGroup: Int = 0, // 0: <10kg, 1: 10-25kg, 2: 26-40kg, 3: 41-50kg
+    val customerPrepaid: Boolean = false,
+    val shopPaysShipping: Boolean = false
 )

@@ -14,19 +14,20 @@ android {
     applicationId = "com.hade.chitieushipper"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1005000
-    versionName = "1.5.0"
+    versionCode = 1006000
+    versionName = "1.6.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+      val hasHadee = file("${rootDir}/hadee.jks").exists()
+      val keystorePath = System.getenv("KEYSTORE_PATH") ?: (if (hasHadee) "${rootDir}/hadee.jks" else "${rootDir}/my-upload-key.jks")
       storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      storePassword = System.getenv("STORE_PASSWORD") ?: (if (hasHadee) "26072003" else "android")
+      keyAlias = System.getenv("KEY_ALIAS") ?: (if (hasHadee) "hadee" else "upload")
+      keyPassword = System.getenv("KEY_PASSWORD") ?: (if (hasHadee) "26072003" else "android")
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
@@ -70,6 +71,8 @@ secrets {
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  implementation("com.google.firebase:firebase-auth")
+  implementation("com.google.firebase:firebase-database")
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)

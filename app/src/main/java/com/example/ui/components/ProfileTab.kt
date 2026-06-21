@@ -37,6 +37,9 @@ import android.content.Intent
 import android.net.Uri
 import com.example.data.update.UpdateState
 import com.example.data.update.UpdateManager
+import com.example.data.firebase.FirebaseConfig
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun ProfileTab(viewModel: TransactionViewModel) {
@@ -71,6 +74,32 @@ fun ProfileTab(viewModel: TransactionViewModel) {
     
     var showResetConfirm by remember { mutableStateOf(false) }
     var showCategoryManager by remember { mutableStateOf(false) }
+
+    // Firebase states
+    val isFbInitialized by com.example.data.firebase.FirebaseManager.isInitialized.collectAsStateWithLifecycle()
+    val isFbSyncing by com.example.data.firebase.FirebaseManager.isSyncing.collectAsStateWithLifecycle()
+    val fbSyncMessage by com.example.data.firebase.FirebaseManager.syncMessage.collectAsStateWithLifecycle()
+    val fbLastSyncTime by com.example.data.firebase.FirebaseManager.lastSyncTime.collectAsStateWithLifecycle()
+
+    var currentUser by remember { mutableStateOf<com.google.firebase.auth.FirebaseUser?>(null) }
+    
+    LaunchedEffect(isFbInitialized) {
+        if (isFbInitialized) {
+            currentUser = com.example.data.firebase.FirebaseManager.auth?.currentUser
+            com.example.data.firebase.FirebaseManager.auth?.addAuthStateListener { auth ->
+                currentUser = auth.currentUser
+            }
+        } else {
+            currentUser = null
+        }
+    }
+
+    var showFirebaseConfigDialog by remember { mutableStateOf(false) }
+    var fbEmail by remember { mutableStateOf("") }
+    var fbPassword by remember { mutableStateOf("") }
+    var fbIsRegisterMode by remember { mutableStateOf(false) }
+    var fbErrorMessage by remember { mutableStateOf("") }
+    var fbSuccessMessage by remember { mutableStateOf("") }
 
     // Computations
     val totalRecords = allTransactions.size
@@ -392,6 +421,417 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                     )
                 }
             }
+        }
+
+        // --- ĐỒNG BỘ ĐÁM MÂY (FIREBASE) ---
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
+            colors = CardDefaults.cardColors(containerColor = GlassCardBg),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ĐỒNG BỘ ĐÁM MÂY (FIREBASE)",
+                        color = WhiteOpacity50,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    IconButton(
+                        onClick = { showFirebaseConfigDialog = true },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Text(text = "⚙️", fontSize = 14.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (!isFbInitialized) {
+                    // Firebase has not been initialized yet
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🔴 Firebase chưa được cấu hình",
+                            color = OrangeHighlight,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "Vui lòng click vào biểu tượng bánh răng bên góc phải hoặc nút bên dưới để nhập tài khoản cấu hình dự án Firebase của bạn.",
+                            color = WhiteOpacity70,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Button(
+                            onClick = { showFirebaseConfigDialog = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SoftOrangeContainer,
+                                contentColor = OrangeHighlight
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = "Nhập cấu hình Firebase ⚙️", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    // Firebase successfully initialized!
+                    val user = currentUser
+                    if (user == null) {
+                        // Not logged in: Show email & password forms
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                                    .padding(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(if (!fbIsRegisterMode) SoftOrangeContainer else Color.Transparent, RoundedCornerShape(6.dp))
+                                        .clickable { 
+                                            fbIsRegisterMode = false 
+                                            fbErrorMessage = ""
+                                            fbSuccessMessage = ""
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Đăng Nhập",
+                                        color = if (!fbIsRegisterMode) OrangeHighlight else Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(if (fbIsRegisterMode) SoftOrangeContainer else Color.Transparent, RoundedCornerShape(6.dp))
+                                        .clickable { 
+                                            fbIsRegisterMode = true 
+                                            fbErrorMessage = ""
+                                            fbSuccessMessage = ""
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Đăng Ký",
+                                        color = if (fbIsRegisterMode) OrangeHighlight else Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = fbEmail,
+                                onValueChange = { fbEmail = it },
+                                label = { Text("Địa chỉ Email") },
+                                textStyle = LocalTextStyle.current.copy(color = Color.White),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = OrangeHighlight,
+                                    unfocusedBorderColor = WhiteOpacity30,
+                                    focusedLabelColor = OrangeHighlight,
+                                    unfocusedLabelColor = WhiteOpacity50
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = fbPassword,
+                                onValueChange = { fbPassword = it },
+                                label = { Text("Mật khẩu (tối thiểu 6 ký tự)") },
+                                textStyle = LocalTextStyle.current.copy(color = Color.White),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = OrangeHighlight,
+                                    unfocusedBorderColor = WhiteOpacity30,
+                                    focusedLabelColor = OrangeHighlight,
+                                    unfocusedLabelColor = WhiteOpacity50
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            if (fbErrorMessage.isNotEmpty()) {
+                                Text(
+                                    text = "❌ $fbErrorMessage",
+                                    color = ErrorRed,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            if (fbSuccessMessage.isNotEmpty()) {
+                                Text(
+                                    text = "✅ $fbSuccessMessage",
+                                    color = SuccessGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    fbErrorMessage = ""
+                                    fbSuccessMessage = ""
+                                    if (fbEmail.trim().isEmpty() || fbPassword.trim().isEmpty()) {
+                                        fbErrorMessage = "Vui lòng nhập đầy đủ email và mật khẩu."
+                                        return@Button
+                                    }
+                                    if (fbPassword.length < 6) {
+                                        fbErrorMessage = "Mật khẩu phải chứa ít nhất 6 ký tự."
+                                        return@Button
+                                    }
+
+                                    val authInstance = com.example.data.firebase.FirebaseManager.auth
+                                    if (authInstance != null) {
+                                        if (fbIsRegisterMode) {
+                                            authInstance.createUserWithEmailAndPassword(fbEmail.trim(), fbPassword.trim())
+                                                .addOnSuccessListener {
+                                                    fbSuccessMessage = "Đăng ký thành công! Đã tự động đăng nhập."
+                                                    fbPassword = ""
+                                                }
+                                                .addOnFailureListener {
+                                                    fbErrorMessage = "Lỗi đăng ký: ${it.localizedMessage}"
+                                                }
+                                        } else {
+                                            authInstance.signInWithEmailAndPassword(fbEmail.trim(), fbPassword.trim())
+                                                .addOnSuccessListener {
+                                                    fbSuccessMessage = "Đăng nhập thành công!"
+                                                    fbPassword = ""
+                                                }
+                                                .addOnFailureListener {
+                                                    fbErrorMessage = "Sai tên đăng nhập hoặc mật khẩu: ${it.localizedMessage}"
+                                                }
+                                        }
+                                    } else {
+                                        fbErrorMessage = "Firebase Module gặp lỗi không khả dụng."
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = DeepOrangePrimary,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = if (fbIsRegisterMode) "ĐĂNG KÝ MỚI" else "ĐĂNG NHẬP NGAY",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    } else {
+                        // User is logged in!
+                        var showRestoreConfirmDialog by remember { mutableStateOf(false) }
+
+                        if (showRestoreConfirmDialog) {
+                            AlertDialog(
+                                onDismissRequest = { showRestoreConfirmDialog = false },
+                                title = { Text("Tải xuống & Ghi đè dữ liệu?", color = Color.White) },
+                                text = {
+                                    Text(
+                                        "Hành động này sẽ tải toàn bộ dữ liệu (giao dịch, lịch sử đơn ship, danh mục) đã lưu từ đám mây xuống và GHI ĐÈ, xóa vĩnh viễn dữ liệu hiện có trên điện thoại của bạn. Bạn có muốn tiếp tục?",
+                                        color = WhiteOpacity70
+                                    )
+                                },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            showRestoreConfirmDialog = false
+                                            fbErrorMessage = ""
+                                            fbSuccessMessage = ""
+                                            com.example.data.firebase.FirebaseManager.downloadDataFromCloud(
+                                                context = context,
+                                                db = com.example.data.db.AppDatabase.getDatabase(context),
+                                                onSuccess = {
+                                                    fbSuccessMessage = "Khôi phục dữ liệu từ Cloud thành công!"
+                                                },
+                                                onFailure = {
+                                                    fbErrorMessage = it
+                                                }
+                                            )
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = OrangeHighlight)
+                                    ) {
+                                        Text("CÓ, GHI ĐÈ LẠI GIAO DIỆN", fontWeight = FontWeight.Bold)
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showRestoreConfirmDialog = false }) {
+                                        Text("HỦY", color = Color.White)
+                                    }
+                                },
+                                containerColor = SolidCardBg,
+                                titleContentColor = Color.White,
+                                textContentColor = Color.White
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Trạng thái: 🟢 Đã liên kết tài khoản",
+                                        color = SuccessGreen,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = user.email ?: "Tài khoản vô danh",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            fbErrorMessage = ""
+                                            fbSuccessMessage = ""
+                                            com.example.data.firebase.FirebaseManager.auth?.signOut()
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Đăng xuất ↩️", color = ErrorRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Divider(color = WhiteOpacity10)
+
+                            if (fbLastSyncTime.isNotEmpty()) {
+                                Text(
+                                    text = "Đồng bộ lần cuối: $fbLastSyncTime",
+                                    color = WhiteOpacity50,
+                                    fontSize = 11.sp
+                                )
+                            } else {
+                                Text(
+                                    text = "Dữ liệu chưa được đồng bộ từ khi mở app.",
+                                    color = WhiteOpacity50,
+                                    fontSize = 11.sp
+                                )
+                            }
+
+                            if (isFbSyncing) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = OrangeHighlight
+                                    )
+                                    Text(text = fbSyncMessage, color = OrangeHighlight, fontSize = 12.sp)
+                                }
+                            }
+
+                            if (fbErrorMessage.isNotEmpty()) {
+                                Text(text = "❌ $fbErrorMessage", color = ErrorRed, fontSize = 11.sp)
+                            }
+                            if (fbSuccessMessage.isNotEmpty()) {
+                                Text(text = "✅ $fbSuccessMessage", color = SuccessGreen, fontSize = 11.sp)
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        fbErrorMessage = ""
+                                        fbSuccessMessage = ""
+                                        val shippingRepository = com.example.data.repository.ShippingRepository(
+                                            com.example.data.db.AppDatabase.getDatabase(context).shippingOrderDao()
+                                        )
+                                        val transactionRepository = com.example.data.repository.TransactionRepository(
+                                            com.example.data.db.AppDatabase.getDatabase(context).transactionDao(),
+                                            com.example.data.db.AppDatabase.getDatabase(context).categoryDao()
+                                        )
+                                        com.example.data.firebase.FirebaseManager.uploadDataToCloud(
+                                            context = context,
+                                            transactionRepository = transactionRepository,
+                                            shippingRepository = shippingRepository,
+                                            onSuccess = {
+                                                fbSuccessMessage = "Đã hoàn thành sao lưu (PUSH) thành công!"
+                                            },
+                                            onFailure = {
+                                                fbErrorMessage = it
+                                            }
+                                        )
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = SoftOrangeContainer,
+                                        contentColor = OrangeHighlight
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("SAO LƯU (PUSH) 📤", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        showRestoreConfirmDialog = true
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color.White.copy(alpha = 0.05f),
+                                        contentColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("KHÔI PHỤC (PULL) 📥", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showFirebaseConfigDialog) {
+            FirebaseConfigDialog(
+                onDismiss = { showFirebaseConfigDialog = false },
+                onSave = { newConfig ->
+                    showFirebaseConfigDialog = false
+                    fbErrorMessage = ""
+                    fbSuccessMessage = ""
+                    com.example.data.firebase.FirebaseManager.saveConfig(context, newConfig)
+                }
+            )
         }
 
         // --- IN-APP UPDATE FOR NON-PLAY STORE APPS ---
@@ -873,4 +1313,171 @@ private fun formatFullAmount(amount: Double): String {
     val df = DecimalFormat("#,###")
     val formatted = df.format(amount).replace(',', '.')
     return "${formatted}đ"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FirebaseConfigDialog(
+    onDismiss: () -> Unit,
+    onSave: (FirebaseConfig) -> Unit
+) {
+    val context = LocalContext.current
+    val currentConfig = remember { com.example.data.firebase.FirebaseManager.getEffectiveConfig(context) }
+
+    var apiKey by remember { mutableStateOf(currentConfig.apiKey) }
+    var projectId by remember { mutableStateOf(currentConfig.projectId) }
+    var appId by remember { mutableStateOf(currentConfig.appId) }
+    var databaseUrl by remember { mutableStateOf(currentConfig.databaseUrl) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .border(1.dp, GlassBorder, RoundedCornerShape(24.dp)),
+            color = SpaceSlateDark
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "⚙️ CẤU HÌNH CLOUD FIREBASE",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Đóng", tint = Color.White)
+                    }
+                }
+
+                Text(
+                    text = "Nhập thông tin xác thực dự án Firebase của bạn. Thông tin được mã hóa và lưu an toàn tại thiết bị.",
+                    color = WhiteOpacity70,
+                    fontSize = 11.sp
+                )
+
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it.trim() },
+                    label = { Text("Web API Key") },
+                    textStyle = LocalTextStyle.current.copy(color = Color.White),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = OrangeHighlight,
+                        unfocusedBorderColor = WhiteOpacity30,
+                        focusedLabelColor = OrangeHighlight,
+                        unfocusedLabelColor = WhiteOpacity50
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = projectId,
+                    onValueChange = { projectId = it.trim() },
+                    label = { Text("Project ID") },
+                    textStyle = LocalTextStyle.current.copy(color = Color.White),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = OrangeHighlight,
+                        unfocusedBorderColor = WhiteOpacity30,
+                        focusedLabelColor = OrangeHighlight,
+                        unfocusedLabelColor = WhiteOpacity50
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = appId,
+                    onValueChange = { appId = it.trim() },
+                    label = { Text("App ID / Application ID") },
+                    textStyle = LocalTextStyle.current.copy(color = Color.White),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = OrangeHighlight,
+                        unfocusedBorderColor = WhiteOpacity30,
+                        focusedLabelColor = OrangeHighlight,
+                        unfocusedLabelColor = WhiteOpacity50
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Ví dụ: 1:12345:android:abcd") },
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = databaseUrl,
+                    onValueChange = { databaseUrl = it.trim() },
+                    label = { Text("Realtime Database URL (Tùy chọn)") },
+                    textStyle = LocalTextStyle.current.copy(color = Color.White),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = OrangeHighlight,
+                        unfocusedBorderColor = WhiteOpacity30,
+                        focusedLabelColor = OrangeHighlight,
+                        unfocusedLabelColor = WhiteOpacity50
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Ví dụ: https://your-db.firebaseio.com") },
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            apiKey = ""
+                            projectId = ""
+                            appId = ""
+                            databaseUrl = ""
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = 0.05f),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("XÓA TRỐNG", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = {
+                            onSave(
+                                FirebaseConfig(
+                                    apiKey = apiKey,
+                                    projectId = projectId,
+                                    appId = appId,
+                                    databaseUrl = databaseUrl
+                                )
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DeepOrangePrimary,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.5f)
+                    ) {
+                        Text("MỞ KẾT NỐI", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
 }

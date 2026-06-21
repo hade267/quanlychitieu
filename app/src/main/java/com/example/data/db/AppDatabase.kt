@@ -8,7 +8,7 @@ import com.example.data.model.Transaction
 import com.example.data.model.CategoryEntity
 import com.example.data.model.ShippingOrder
 
-@Database(entities = [Transaction::class, CategoryEntity::class, ShippingOrder::class], version = 4, exportSchema = false)
+@Database(entities = [Transaction::class, CategoryEntity::class, ShippingOrder::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun categoryDao(): CategoryDao
