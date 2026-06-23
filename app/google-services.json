@@ -12,7 +12,12 @@
           "package_name": "com.hade.chitieushipper"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "727769158214-a7l0fjk2c4bejg4g7omg525v0g78i9ad.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCU2up0YKG7Xp9-IUk8TYZu2pSqOKZNbFs"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "727769158214-a7l0fjk2c4bejg4g7omg525v0g78i9ad.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

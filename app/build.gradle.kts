@@ -15,8 +15,8 @@ android {
     applicationId = "com.hade.chitieushipper"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1009001
-    versionName = "1.9.1"
+    versionCode = 1010000
+    versionName = "1.10.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -74,6 +74,7 @@ dependencies {
   implementation(platform(libs.firebase.bom))
   implementation("com.google.firebase:firebase-auth")
   implementation("com.google.firebase:firebase-database")
+  implementation(libs.play.services.auth)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)

@@ -40,6 +40,13 @@ import com.example.data.update.UpdateManager
 import com.example.data.firebase.FirebaseConfig
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.GoogleAuthProvider
+import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun ProfileTab(viewModel: TransactionViewModel) {
@@ -82,6 +89,32 @@ fun ProfileTab(viewModel: TransactionViewModel) {
     val fbLastSyncTime by com.example.data.firebase.FirebaseManager.lastSyncTime.collectAsStateWithLifecycle()
 
     var currentUser by remember { mutableStateOf<com.google.firebase.auth.FirebaseUser?>(null) }
+
+    var fbEmail by remember { mutableStateOf("") }
+    var fbPassword by remember { mutableStateOf("") }
+    var fbIsRegisterMode by remember { mutableStateOf(false) }
+    var fbErrorMessage by remember { mutableStateOf("") }
+    var fbSuccessMessage by remember { mutableStateOf("") }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val credential = GoogleAuthProvider.getCredential(account?.idToken, null)
+            val authInstance = com.example.data.firebase.FirebaseManager.auth
+            authInstance?.signInWithCredential(credential)
+                ?.addOnSuccessListener {
+                    fbSuccessMessage = "Đăng nhập bằng tài khoản Google thành công!"
+                }
+                ?.addOnFailureListener {
+                    fbErrorMessage = "Lỗi đăng nhập Google: ${it.localizedMessage}"
+                }
+        } catch (e: Exception) {
+            fbErrorMessage = "Hủy hoặc lỗi đăng nhập Google: ${e.localizedMessage}"
+        }
+    }
     
     LaunchedEffect(isFbInitialized) {
         if (isFbInitialized) {
@@ -93,12 +126,6 @@ fun ProfileTab(viewModel: TransactionViewModel) {
             currentUser = null
         }
     }
-
-    var fbEmail by remember { mutableStateOf("") }
-    var fbPassword by remember { mutableStateOf("") }
-    var fbIsRegisterMode by remember { mutableStateOf(false) }
-    var fbErrorMessage by remember { mutableStateOf("") }
-    var fbSuccessMessage by remember { mutableStateOf("") }
 
     // Computations
     val totalRecords = allTransactions.size
@@ -632,6 +659,72 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                HorizontalDivider(
+                                    modifier = Modifier.weight(1f),
+                                    color = WhiteOpacity30
+                                )
+                                Text(
+                                    text = "HOẶC",
+                                    color = WhiteOpacity50,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.weight(1f),
+                                    color = WhiteOpacity30
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    fbErrorMessage = ""
+                                    fbSuccessMessage = ""
+                                    try {
+                                        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                            .requestIdToken("727769158214-a7l0fjk2c4bejg4g7omg525v0g78i9ad.apps.googleusercontent.com")
+                                            .requestEmail()
+                                            .build()
+                                        val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                                        googleSignInClient.signOut().addOnCompleteListener {
+                                            val signInIntent = googleSignInClient.signInIntent
+                                            googleSignInLauncher.launch(signInIntent)
+                                        }
+                                    } catch (e: Exception) {
+                                        fbErrorMessage = "Không thể khởi tạo Google Sign-in: ${e.localizedMessage}"
+                                    }
+                                },
+                                border = BorderStroke(1.dp, WhiteOpacity30),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.White.copy(alpha = 0.05f),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "G  ",
+                                        color = OrangeHighlight,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text(
+                                        text = "ĐĂNG NHẬP BẰNG GOOGLE",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.3.sp
+                                    )
+                                }
                             }
                         }
                     } else {
