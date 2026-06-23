@@ -4,6 +4,7 @@ plugins {
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
+  alias(libs.plugins.google.services)
 }
 
 android {
@@ -14,8 +15,8 @@ android {
     applicationId = "com.hade.chitieushipper"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1006000
-    versionName = "1.6.0"
+    versionCode = 1009001
+    versionName = "1.9.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

@@ -94,7 +94,6 @@ fun ProfileTab(viewModel: TransactionViewModel) {
         }
     }
 
-    var showFirebaseConfigDialog by remember { mutableStateOf(false) }
     var fbEmail by remember { mutableStateOf("") }
     var fbPassword by remember { mutableStateOf("") }
     var fbIsRegisterMode by remember { mutableStateOf(false) }
@@ -444,12 +443,6 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     )
-                    IconButton(
-                        onClick = { showFirebaseConfigDialog = true },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Text(text = "⚙️", fontSize = 14.sp)
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -469,23 +462,11 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "Vui lòng click vào biểu tượng bánh răng bên góc phải hoặc nút bên dưới để nhập tài khoản cấu hình dự án Firebase của bạn.",
+                            text = "Tính năng đồng bộ tự động qua tài khoản đám mây lưu trữ dữ liệu an toàn.",
                             color = WhiteOpacity70,
                             fontSize = 11.sp,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Button(
-                            onClick = { showFirebaseConfigDialog = true },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = SoftOrangeContainer,
-                                contentColor = OrangeHighlight
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(text = "Nhập cấu hình Firebase ⚙️", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
                     }
                 } else {
                     // Firebase successfully initialized!
@@ -613,7 +594,12 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                                                     fbPassword = ""
                                                 }
                                                 .addOnFailureListener {
-                                                    fbErrorMessage = "Lỗi đăng ký: ${it.localizedMessage}"
+                                                    val msg = it.localizedMessage ?: ""
+                                                    fbErrorMessage = if (msg.contains("configuration_not_found", ignoreCase = true)) {
+                                                        "Lỗi: Phương thức Email/Mật khẩu chưa được bật trong Firebase Console. Vui lòng vào console.firebase.google.com -> dự án của bạn -> Authentication -> tab Sign-in method và BẬT 'Email/Password' lên."
+                                                     } else {
+                                                         "Lỗi đăng ký: $msg"
+                                                     }
                                                 }
                                         } else {
                                             authInstance.signInWithEmailAndPassword(fbEmail.trim(), fbPassword.trim())
@@ -622,7 +608,12 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                                                     fbPassword = ""
                                                 }
                                                 .addOnFailureListener {
-                                                    fbErrorMessage = "Sai tên đăng nhập hoặc mật khẩu: ${it.localizedMessage}"
+                                                    val msg = it.localizedMessage ?: ""
+                                                    fbErrorMessage = if (msg.contains("configuration_not_found", ignoreCase = true)) {
+                                                        "Lỗi: Phương thức Email/Mật khẩu chưa được bật trong Firebase Console. Vui lòng vào console.firebase.google.com -> dự án của bạn -> Authentication -> tab Sign-in method và BẬT 'Email/Password' lên."
+                                                    } else {
+                                                        "Sai tên đăng nhập hoặc mật khẩu: $msg"
+                                                    }
                                                 }
                                         }
                                     } else {
@@ -820,18 +811,6 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                     }
                 }
             }
-        }
-
-        if (showFirebaseConfigDialog) {
-            FirebaseConfigDialog(
-                onDismiss = { showFirebaseConfigDialog = false },
-                onSave = { newConfig ->
-                    showFirebaseConfigDialog = false
-                    fbErrorMessage = ""
-                    fbSuccessMessage = ""
-                    com.example.data.firebase.FirebaseManager.saveConfig(context, newConfig)
-                }
-            )
         }
 
         // --- IN-APP UPDATE FOR NON-PLAY STORE APPS ---
@@ -1315,169 +1294,4 @@ private fun formatFullAmount(amount: Double): String {
     return "${formatted}đ"
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FirebaseConfigDialog(
-    onDismiss: () -> Unit,
-    onSave: (FirebaseConfig) -> Unit
-) {
-    val context = LocalContext.current
-    val currentConfig = remember { com.example.data.firebase.FirebaseManager.getEffectiveConfig(context) }
 
-    var apiKey by remember { mutableStateOf(currentConfig.apiKey) }
-    var projectId by remember { mutableStateOf(currentConfig.projectId) }
-    var appId by remember { mutableStateOf(currentConfig.appId) }
-    var databaseUrl by remember { mutableStateOf(currentConfig.databaseUrl) }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .border(1.dp, GlassBorder, RoundedCornerShape(24.dp)),
-            color = SpaceSlateDark
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "⚙️ CẤU HÌNH CLOUD FIREBASE",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Đóng", tint = Color.White)
-                    }
-                }
-
-                Text(
-                    text = "Nhập thông tin xác thực dự án Firebase của bạn. Thông tin được mã hóa và lưu an toàn tại thiết bị.",
-                    color = WhiteOpacity70,
-                    fontSize = 11.sp
-                )
-
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = { apiKey = it.trim() },
-                    label = { Text("Web API Key") },
-                    textStyle = LocalTextStyle.current.copy(color = Color.White),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeHighlight,
-                        unfocusedBorderColor = WhiteOpacity30,
-                        focusedLabelColor = OrangeHighlight,
-                        unfocusedLabelColor = WhiteOpacity50
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = projectId,
-                    onValueChange = { projectId = it.trim() },
-                    label = { Text("Project ID") },
-                    textStyle = LocalTextStyle.current.copy(color = Color.White),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeHighlight,
-                        unfocusedBorderColor = WhiteOpacity30,
-                        focusedLabelColor = OrangeHighlight,
-                        unfocusedLabelColor = WhiteOpacity50
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = appId,
-                    onValueChange = { appId = it.trim() },
-                    label = { Text("App ID / Application ID") },
-                    textStyle = LocalTextStyle.current.copy(color = Color.White),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeHighlight,
-                        unfocusedBorderColor = WhiteOpacity30,
-                        focusedLabelColor = OrangeHighlight,
-                        unfocusedLabelColor = WhiteOpacity50
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Ví dụ: 1:12345:android:abcd") },
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = databaseUrl,
-                    onValueChange = { databaseUrl = it.trim() },
-                    label = { Text("Realtime Database URL (Tùy chọn)") },
-                    textStyle = LocalTextStyle.current.copy(color = Color.White),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeHighlight,
-                        unfocusedBorderColor = WhiteOpacity30,
-                        focusedLabelColor = OrangeHighlight,
-                        unfocusedLabelColor = WhiteOpacity50
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Ví dụ: https://your-db.firebaseio.com") },
-                    singleLine = true
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            apiKey = ""
-                            projectId = ""
-                            appId = ""
-                            databaseUrl = ""
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White.copy(alpha = 0.05f),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("XÓA TRỐNG", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    Button(
-                        onClick = {
-                            onSave(
-                                FirebaseConfig(
-                                    apiKey = apiKey,
-                                    projectId = projectId,
-                                    appId = appId,
-                                    databaseUrl = databaseUrl
-                                )
-                            )
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = DeepOrangePrimary,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1.5f)
-                    ) {
-                        Text("MỞ KẾT NỐI", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-}

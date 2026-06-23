@@ -1,7 +1,7 @@
 {
-  "versionCode": 1006002,
-  "versionName": "1.6.2",
-  "updateLog": "",
-  "apkUrl": "https://github.com/hade267/quanlychitieu/releases/download/v1.6.2/com.hade.chitieushipper_1.6.2.apk",
+  "versionCode": 1009001,
+  "versionName": "1.9.1",
+  "updateLog": "Cập nhật phiên bản 1.9.1 bổ sung thông báo hướng dẫn kích hoạt phương thức đăng nhập Email/Mật khẩu khi phát hiện lỗi cấu hình từ phía Firebase Console.",
+  "apkUrl": "https://github.com/hade267/quanlychitieu/releases/download/v1.9.1/com.hade.chitieushipper_1.9.1.apk",
   "forceUpdate": false
 }

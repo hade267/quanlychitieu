@@ -59,54 +59,80 @@ object FirebaseManager {
         private set
 
     /**
-     * Tries to initialize Firebase from stored user preferences or BuildConfig fallbacks.
+     * Tries to initialize Firebase automatically using google-services.json configuration,
+     * with an options-based fallback on user-configured properties or BuildConfig variables.
      */
     fun initialize(context: Context) {
         if (_isInitialized.value) return
 
         try {
-            val config = getEffectiveConfig(context)
-            if (config.apiKey.isEmpty() || config.projectId.isEmpty() || config.appId.isEmpty()) {
-                Log.d(TAG, "Firebase configuration is incomplete. Running in local/offline mode.")
+            Log.d(TAG, "Attempting standard Firebase initialization from google-services.json...")
+            // When google-services.json is processed, FirebaseApp can be initialized automatically
+            val app = FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(context)
+            
+            if (app == null) {
                 _isInitialized.value = false
                 return
             }
-
-            val optionsBuilder = FirebaseOptions.Builder()
-                .setApiKey(config.apiKey)
-                .setProjectId(config.projectId)
-                .setApplicationId(config.appId)
-
-            if (config.databaseUrl.isNotEmpty()) {
-                optionsBuilder.setDatabaseUrl(config.databaseUrl)
-            }
-
-            val options = optionsBuilder.build()
-
-            // Safe initialization to avoid crashes if already initialized by name
-            firebaseApp = FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(context, options)
             
-            firebaseApp?.let { app ->
-                auth = FirebaseAuth.getInstance(app)
-                rtdb = if (config.databaseUrl.isNotEmpty()) {
-                    FirebaseDatabase.getInstance(app, config.databaseUrl)
-                } else {
-                    FirebaseDatabase.getInstance(app)
-                }
-                
-                // Enable offline data persistence for rtdb
-                try {
-                    rtdb?.setPersistenceEnabled(true)
-                } catch (e: Exception) {
-                    Log.d(TAG, "Persistence already enabled or failed to enable: ${e.message}")
-                }
-
-                _isInitialized.value = true
-                Log.d(TAG, "Firebase successfully initialized.")
+            firebaseApp = app
+            auth = FirebaseAuth.getInstance(app)
+            rtdb = FirebaseDatabase.getInstance(app)
+            
+            // Enable offline data persistence for RTDB
+            try {
+                rtdb?.setPersistenceEnabled(true)
+            } catch (e: Exception) {
+                Log.d(TAG, "Persistence already enabled or failed to enable: ${e.message}")
             }
+
+            _isInitialized.value = true
+            Log.d(TAG, "Firebase successfully initialized using google-services.json.")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize Firebase: ${e.message}", e)
-            _isInitialized.value = false
+            Log.e(TAG, "Standard Firebase initialization failed: ${e.message}. Trying manual option fallback...", e)
+            try {
+                val config = getEffectiveConfig(context)
+                if (config.apiKey.isNotEmpty() && config.projectId.isNotEmpty() && config.appId.isNotEmpty()) {
+                    val optionsBuilder = FirebaseOptions.Builder()
+                        .setApiKey(config.apiKey)
+                        .setProjectId(config.projectId)
+                        .setApplicationId(config.appId)
+
+                    if (config.databaseUrl.isNotEmpty()) {
+                        optionsBuilder.setDatabaseUrl(config.databaseUrl)
+                    }
+
+                    val options = optionsBuilder.build()
+                    val app = FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(context, options)
+                    
+                    if (app == null) {
+                        _isInitialized.value = false
+                        return
+                    }
+                    
+                    firebaseApp = app
+                    auth = FirebaseAuth.getInstance(app)
+                    rtdb = if (config.databaseUrl.isNotEmpty()) {
+                        FirebaseDatabase.getInstance(app, config.databaseUrl)
+                    } else {
+                        FirebaseDatabase.getInstance(app)
+                    }
+
+                    try {
+                        rtdb?.setPersistenceEnabled(true)
+                    } catch (persErr: Exception) {
+                        Log.d(TAG, "Persistence options enable: ${persErr.message}")
+                    }
+
+                    _isInitialized.value = true
+                    Log.d(TAG, "Firebase successfully initialized with manual options fallback.")
+                } else {
+                    _isInitialized.value = false
+                }
+            } catch (fallbackEx: Exception) {
+                Log.e(TAG, "Fallback initialization also failed", fallbackEx)
+                _isInitialized.value = false
+            }
         }
     }
 
@@ -147,27 +173,6 @@ object FirebaseManager {
             appId = spAppId.ifEmpty { buildAppId },
             databaseUrl = spDbUrl.ifEmpty { buildDbUrl }
         )
-    }
-
-    /**
-     * Save custom config from settings UI and trigger re-initialization.
-     */
-    fun saveConfig(context: Context, config: FirebaseConfig) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString(KEY_API_KEY, config.apiKey)
-            .putString(KEY_PROJECT_ID, config.projectId)
-            .putString(KEY_APP_ID, config.appId)
-            .putString(KEY_DB_URL, config.databaseUrl)
-            .apply()
-
-        // Force reset
-        _isInitialized.value = false
-        firebaseApp = null
-        auth = null
-        rtdb = null
-        
-        initialize(context)
     }
 
     /**

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "727769158214",
+    "project_id": "quanlychitieu-a34ff",
+    "storage_bucket": "quanlychitieu-a34ff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:727769158214:android:9af702816853a1761cf047",
+        "android_client_info": {
+          "package_name": "com.hade.chitieushipper"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCU2up0YKG7Xp9-IUk8TYZu2pSqOKZNbFs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
