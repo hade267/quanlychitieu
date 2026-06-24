@@ -144,6 +144,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 type = type,
                 note = note
             ))
+            triggerAutoSync()
         }
     }
 
@@ -151,18 +152,21 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             val finalTitle = transaction.title.trim().ifEmpty { transaction.category }
             repository.update(transaction.copy(title = finalTitle))
+            triggerAutoSync()
         }
     }
 
     fun deleteTransaction(transaction: Transaction) {
         viewModelScope.launch {
             repository.delete(transaction)
+            triggerAutoSync()
         }
     }
 
     fun deleteTransactionById(id: Int) {
         viewModelScope.launch {
             repository.deleteById(id)
+            triggerAutoSync()
         }
     }
 
@@ -170,18 +174,21 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     fun insertCategory(name: String, emoji: String, colorHex: String, type: String) {
         viewModelScope.launch {
             repository.insertCategory(CategoryEntity(name = name, emoji = emoji, colorHex = colorHex, type = type))
+            triggerAutoSync()
         }
     }
 
     fun updateCategory(category: CategoryEntity) {
         viewModelScope.launch {
             repository.updateCategory(category)
+            triggerAutoSync()
         }
     }
 
     fun deleteCategory(category: CategoryEntity) {
         viewModelScope.launch {
             repository.deleteCategory(category)
+            triggerAutoSync()
         }
     }
 
@@ -199,6 +206,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             }
             // Reseed default categories
             seedDefaultCategories()
+            triggerAutoSync()
         }
     }
 
@@ -300,6 +308,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             val insertedId = shippingRepository.insert(order)
             val updatedOrder = order.copy(id = insertedId.toInt())
             syncShippingOrderTransaction(updatedOrder)
+            triggerAutoSync()
         }
     }
 
@@ -307,6 +316,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             shippingRepository.update(order)
             syncShippingOrderTransaction(order)
+            triggerAutoSync()
         }
     }
 
@@ -314,6 +324,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             shippingRepository.delete(order)
             removeShippingOrderTransaction(order.id)
+            triggerAutoSync()
         }
     }
 
@@ -356,6 +367,14 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         if (matchingTx != null) {
             repository.delete(matchingTx)
         }
+    }
+
+    private fun triggerAutoSync() {
+        com.example.data.firebase.FirebaseManager.autoSyncToCloud(
+            context = getApplication(),
+            transactionRepository = repository,
+            shippingRepository = shippingRepository
+        )
     }
 }
 

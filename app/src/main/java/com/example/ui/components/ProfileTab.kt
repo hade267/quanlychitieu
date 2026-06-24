@@ -87,6 +87,7 @@ fun ProfileTab(viewModel: TransactionViewModel) {
     val isFbSyncing by com.example.data.firebase.FirebaseManager.isSyncing.collectAsStateWithLifecycle()
     val fbSyncMessage by com.example.data.firebase.FirebaseManager.syncMessage.collectAsStateWithLifecycle()
     val fbLastSyncTime by com.example.data.firebase.FirebaseManager.lastSyncTime.collectAsStateWithLifecycle()
+    val isOnline by com.example.data.firebase.FirebaseManager.isOnline.collectAsStateWithLifecycle()
 
     var currentUser by remember { mutableStateOf<com.google.firebase.auth.FirebaseUser?>(null) }
 
@@ -112,7 +113,16 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                     fbErrorMessage = "Lỗi đăng nhập Google: ${it.localizedMessage}"
                 }
         } catch (e: Exception) {
-            fbErrorMessage = "Hủy hoặc lỗi đăng nhập Google: ${e.localizedMessage}"
+            if (e is ApiException) {
+                fbErrorMessage = when (e.statusCode) {
+                    10 -> "Lỗi cấu hình (Developer Error 10): Chưa thêm mã dấu vân tay SHA-1 của môi trường này vào cài đặt ứng dụng Android trên Firebase Console."
+                    7 -> "Mất kết nối mạng hoặc lỗi dịch vụ Google Play Service (Code 7)."
+                    12501 -> "Bạn đã hủy quy trình đăng nhập Google."
+                    else -> "Lỗi Google (Code ${e.statusCode}): ${e.localizedMessage ?: e.message}"
+                }
+            } else {
+                fbErrorMessage = "Hủy hoặc lỗi đăng nhập Google: ${e.localizedMessage}"
+            }
         }
     }
     
@@ -784,12 +794,29 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text(
-                                        text = "Trạng thái: 🟢 Đã liên kết tài khoản",
-                                        color = SuccessGreen,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "Trạng thái: 🟢 Đã liên kết ",
+                                            color = SuccessGreen,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    if (isOnline) SuccessGreen.copy(alpha = 0.15f) else OrangeHighlight.copy(alpha = 0.15f),
+                                                    RoundedCornerShape(4.dp)
+                                                )
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = if (isOnline) "ONLINE" else "OFFLINE",
+                                                color = if (isOnline) SuccessGreen else OrangeHighlight,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
                                     Text(
                                         text = user.email ?: "Tài khoản vô danh",
                                         color = Color.White,
@@ -826,6 +853,13 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                                     fontSize = 11.sp
                                 )
                             }
+
+                            Text(
+                                text = "⚡ Đang bật đồng bộ tự động offline-first. Mọi thay đổi của bạn sẽ tự động lưu cục bộ và tự động tải lên đám mây khi có mạng.",
+                                color = SuccessGreen.copy(alpha = 0.85f),
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
 
                             if (isFbSyncing) {
                                 Row(
@@ -869,7 +903,11 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                                             transactionRepository = transactionRepository,
                                             shippingRepository = shippingRepository,
                                             onSuccess = {
-                                                fbSuccessMessage = "Đã hoàn thành sao lưu (PUSH) thành công!"
+                                                if (isOnline) {
+                                                    fbSuccessMessage = "Đã hoàn thành sao lưu (PUSH) thành công!"
+                                                } else {
+                                                    fbSuccessMessage = "Đã ghi nhận sao lưu offline! Hệ thống sẽ tự động đồng bộ khi có kết nối mạng."
+                                                }
                                             },
                                             onFailure = {
                                                 fbErrorMessage = it

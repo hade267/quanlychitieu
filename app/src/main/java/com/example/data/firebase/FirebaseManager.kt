@@ -52,6 +52,9 @@ object FirebaseManager {
     private val _lastSyncTime = MutableStateFlow("")
     val lastSyncTime: StateFlow<String> = _lastSyncTime.asStateFlow()
 
+    private val _isOnline = MutableStateFlow(true)
+    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+
     private var firebaseApp: FirebaseApp? = null
     var auth: FirebaseAuth? = null
         private set
@@ -84,6 +87,22 @@ object FirebaseManager {
                 rtdb?.setPersistenceEnabled(true)
             } catch (e: Exception) {
                 Log.d(TAG, "Persistence already enabled or failed to enable: ${e.message}")
+            }
+
+            // Monitor connection status
+            try {
+                rtdb?.getReference(".info/connected")?.addValueEventListener(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val connected = snapshot.getValue(Boolean::class.java) ?: false
+                        _isOnline.value = connected
+                        Log.d(TAG, "Connection status updated: $connected")
+                    }
+                    override fun onCancelled(error: DatabaseError) {
+                        Log.w(TAG, "Failed to read connection status: ${error.message}")
+                    }
+                })
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to listen to connection status: ${e.message}")
             }
 
             _isInitialized.value = true
@@ -122,6 +141,22 @@ object FirebaseManager {
                         rtdb?.setPersistenceEnabled(true)
                     } catch (persErr: Exception) {
                         Log.d(TAG, "Persistence options enable: ${persErr.message}")
+                    }
+
+                    // Monitor connection status
+                    try {
+                        rtdb?.getReference(".info/connected")?.addValueEventListener(object : ValueEventListener {
+                            override fun onDataChange(snapshot: DataSnapshot) {
+                                val connected = snapshot.getValue(Boolean::class.java) ?: false
+                                _isOnline.value = connected
+                                Log.d(TAG, "Connection status updated: $connected")
+                            }
+                            override fun onCancelled(error: DatabaseError) {
+                                Log.w(TAG, "Failed to read connection status: ${error.message}")
+                            }
+                        })
+                    } catch (connErr: Exception) {
+                        Log.e(TAG, "Failed to listen to connection status: ${connErr.message}")
                     }
 
                     _isInitialized.value = true
@@ -251,12 +286,22 @@ object FirebaseManager {
                     "last_synced_millis" to System.currentTimeMillis()
                 )
 
-                userRef.setValue(dataToSync).await()
-
-                withContext(Dispatchers.Main) {
-                    _isSyncing.value = false
-                    _lastSyncTime.value = "Hôm nay, " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
-                    onSuccess()
+                if (!_isOnline.value) {
+                    // Offline: save to local Firebase RTDB cache immediately
+                    userRef.setValue(dataToSync)
+                    withContext(Dispatchers.Main) {
+                        _isSyncing.value = false
+                        _lastSyncTime.value = "Chờ đồng bộ: " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+                        onSuccess()
+                    }
+                } else {
+                    // Online: push and await confirmation
+                    userRef.setValue(dataToSync).await()
+                    withContext(Dispatchers.Main) {
+                        _isSyncing.value = false
+                        _lastSyncTime.value = "Hôm nay, " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+                        onSuccess()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error pushing data to Cloud: ${e.message}", e)
@@ -281,6 +326,11 @@ object FirebaseManager {
         val database = rtdb
         if (currentUser == null || database == null) {
             onFailure("Vui lòng đăng nhập trước khi đồng bộ.")
+            return
+        }
+
+        if (!_isOnline.value) {
+            onFailure("Thiết bị đang ngoại tuyến. Vui lòng kết nối mạng để tải xuống dữ liệu từ đám mây.")
             return
         }
 
@@ -425,6 +475,89 @@ object FirebaseManager {
                     _isSyncing.value = false
                     onFailure("Lỗi tải xuống: ${e.message}")
                 }
+            }
+        }
+    }
+
+    /**
+     * Silent background auto-sync for offline-first support.
+     * Pushes current local Room data to Firebase without blocking the UI.
+     * Works seamlessly offline thanks to Firebase RTDB disk persistence.
+     */
+    fun autoSyncToCloud(
+        context: Context,
+        transactionRepository: TransactionRepository,
+        shippingRepository: ShippingRepository
+    ) {
+        val currentUser = auth?.currentUser
+        val database = rtdb
+        if (currentUser == null || database == null) return
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val transactionsList = transactionRepository.allTransactions.first()
+                val categoriesList = transactionRepository.allCategories.first()
+                val shippingList = shippingRepository.allShippingOrders.first()
+
+                val userId = currentUser.uid
+                val userRef = database.getReference("users").child(userId)
+
+                val dataToSync = hashMapOf<String, Any>(
+                    "transactions" to transactionsList.map { 
+                        mapOf(
+                            "id" to it.id,
+                            "title" to it.title,
+                            "amount" to it.amount,
+                            "dateMillis" to it.dateMillis,
+                            "category" to it.category,
+                            "type" to it.type,
+                            "note" to it.note
+                        )
+                    },
+                    "categories" to categoriesList.map {
+                        mapOf(
+                            "id" to it.id,
+                            "name" to it.name,
+                            "emoji" to it.emoji,
+                            "colorHex" to it.colorHex,
+                            "type" to it.type
+                        )
+                    },
+                    "shipping_orders" to shippingList.map {
+                        mapOf(
+                            "id" to it.id,
+                            "address" to it.address,
+                            "phoneNumber" to it.phoneNumber,
+                            "orderAmount" to it.orderAmount,
+                            "distance" to it.distance,
+                            "shippingFee" to it.shippingFee,
+                            "status" to it.status,
+                            "timestamp" to it.timestamp,
+                            "note" to it.note,
+                            "surchargeNightSummer" to it.surchargeNightSummer,
+                            "surchargeNightWinter" to it.surchargeNightWinter,
+                            "surchargeHeavyRain" to it.surchargeHeavyRain,
+                            "surchargeCake" to it.surchargeCake,
+                            "surchargeDoorToDoor" to it.surchargeDoorToDoor,
+                            "surchargeBuyOnBehalf" to it.surchargeBuyOnBehalf,
+                            "surchargeBusStation" to it.surchargeBusStation,
+                            "weightGroup" to it.weightGroup,
+                            "customerPrepaid" to it.customerPrepaid,
+                            "shopPaysShipping" to it.shopPaysShipping
+                        )
+                    },
+                    "last_synced_millis" to System.currentTimeMillis()
+                )
+
+                // Save to Firebase (RTDB handles offline buffering and background delivery)
+                userRef.setValue(dataToSync)
+                
+                withContext(Dispatchers.Main) {
+                    val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+                    _lastSyncTime.value = "Tự động: $time"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Background auto sync failed: ${e.message}", e)
             }
         }
     }

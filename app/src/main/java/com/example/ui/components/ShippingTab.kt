@@ -78,6 +78,11 @@ fun ShippingTab(viewModel: TransactionViewModel) {
         }
     }
 
+    // Group filtered orders by date string
+    val groupedOrders = remember(filteredOrders) {
+        filteredOrders.groupBy { getGroupDateString(it.timestamp) }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -269,25 +274,61 @@ fun ShippingTab(viewModel: TransactionViewModel) {
                 }
             }
         } else {
-            items(filteredOrders, key = { it.id }) { order ->
-                ShippingOrderCard(
-                    order = order,
-                    onStatusChange = { newStatus ->
-                        viewModel.updateShippingOrder(order.copy(status = newStatus))
-                    },
-                    onEdit = { orderToEdit = order },
-                    onDelete = { orderToDelete = order },
-                    onDialPhone = { phone ->
-                        try {
-                            val intent = Intent(Intent.ACTION_DIAL).apply {
-                                data = Uri.parse("tel:$phone")
-                            }
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Không thể mở ứng dụng gọi điện", Toast.LENGTH_SHORT).show()
+            groupedOrders.forEach { (dateStr, ordersInDate) ->
+                item(key = "header_$dateStr") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(OrangeHighlight)
+                            )
+                            Text(
+                                text = dateStr,
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "${ordersInDate.size} đơn",
+                                color = WhiteOpacity50,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
-                )
+                }
+
+                items(ordersInDate, key = { it.id }) { order ->
+                    ShippingOrderCard(
+                        order = order,
+                        onStatusChange = { newStatus ->
+                            viewModel.updateShippingOrder(order.copy(status = newStatus))
+                        },
+                        onEdit = { orderToEdit = order },
+                        onDelete = { orderToDelete = order },
+                        onDialPhone = { phone ->
+                            try {
+                                val intent = Intent(Intent.ACTION_DIAL).apply {
+                                    data = Uri.parse("tel:$phone")
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Không thể mở ứng dụng gọi điện", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -1459,5 +1500,38 @@ fun SurchargeCheckboxRow(
             fontSize = 12.sp,
             fontWeight = if (checked) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+private fun getGroupDateString(timestamp: Long): String {
+    val orderCal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
+    val todayCal = java.util.Calendar.getInstance()
+    val yesterdayCal = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DATE, -1) }
+    
+    val orderYear = orderCal.get(java.util.Calendar.YEAR)
+    val orderDayOfYear = orderCal.get(java.util.Calendar.DAY_OF_YEAR)
+    
+    val todayYear = todayCal.get(java.util.Calendar.YEAR)
+    val todayDayOfYear = todayCal.get(java.util.Calendar.DAY_OF_YEAR)
+    
+    val yesterdayYear = yesterdayCal.get(java.util.Calendar.YEAR)
+    val yesterdayDayOfYear = yesterdayCal.get(java.util.Calendar.DAY_OF_YEAR)
+    
+    return when {
+        orderYear == todayYear && orderDayOfYear == todayDayOfYear -> "Hôm nay (${java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(timestamp)})"
+        orderYear == yesterdayYear && orderDayOfYear == yesterdayDayOfYear -> "Hôm qua (${java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(timestamp)})"
+        else -> {
+            val dayOfWeek = when (orderCal.get(java.util.Calendar.DAY_OF_WEEK)) {
+                java.util.Calendar.MONDAY -> "Thứ Hai"
+                java.util.Calendar.TUESDAY -> "Thứ Ba"
+                java.util.Calendar.WEDNESDAY -> "Thứ Tư"
+                java.util.Calendar.THURSDAY -> "Thứ Năm"
+                java.util.Calendar.FRIDAY -> "Thứ Sáu"
+                java.util.Calendar.SATURDAY -> "Thứ Bảy"
+                java.util.Calendar.SUNDAY -> "Chủ Nhật"
+                else -> "Ngày"
+            }
+            "$dayOfWeek, " + java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(timestamp)
+        }
     }
 }
