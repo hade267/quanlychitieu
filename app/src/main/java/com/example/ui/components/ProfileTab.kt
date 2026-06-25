@@ -47,6 +47,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.GoogleAuthProvider
 import androidx.compose.foundation.BorderStroke
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileTab(viewModel: TransactionViewModel) {
@@ -943,6 +944,170 @@ fun ProfileTab(viewModel: TransactionViewModel) {
                 }
             }
         }
+
+        // --- LOCAL EXPORT & IMPORT (OFFLINE-FIRST) ---
+        val localScope = rememberCoroutineScope()
+        var showImportConfirmDialog by remember { mutableStateOf<Uri?>(null) }
+        var localErrorMessage by remember { mutableStateOf("") }
+        var localSuccessMessage by remember { mutableStateOf("") }
+
+        val exportLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/json"),
+            onResult = { uri ->
+                if (uri != null) {
+                    try {
+                        localErrorMessage = ""
+                        localSuccessMessage = ""
+                        
+                        val jsonString = com.example.data.utils.DataBackupManager.exportToJson(
+                            transactions = allTransactions,
+                            categories = allCategories,
+                            shippingOrders = viewModel.allShippingOrders.value
+                        )
+                        
+                        context.contentResolver.openOutputStream(uri)?.use { out ->
+                            out.write(jsonString.toByteArray(Charsets.UTF_8))
+                        }
+                        localSuccessMessage = "Xuất dữ liệu ra file thành công!"
+                    } catch (e: Exception) {
+                        localErrorMessage = "Lỗi xuất file: ${e.localizedMessage ?: e.message}"
+                    }
+                }
+            }
+        )
+
+        val importLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocument(),
+            onResult = { uri ->
+                if (uri != null) {
+                    showImportConfirmDialog = uri
+                }
+            }
+        )
+
+        if (showImportConfirmDialog != null) {
+            AlertDialog(
+                onDismissRequest = { showImportConfirmDialog = null },
+                title = { Text("Nhập dữ liệu & Ghi đè?", color = Color.White) },
+                text = {
+                    Text(
+                        "Hành động này sẽ xóa toàn bộ dữ liệu hiện tại (giao dịch, đơn ship, danh mục) trên điện thoại và ghi đè bằng dữ liệu từ file backup đã chọn. Bạn có chắc chắn muốn tiếp tục?",
+                        color = WhiteOpacity70
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val uri = showImportConfirmDialog!!
+                            showImportConfirmDialog = null
+                            localErrorMessage = ""
+                            localSuccessMessage = ""
+                            
+                            localScope.launch {
+                                val db = com.example.data.db.AppDatabase.getDatabase(context)
+                                val result = com.example.data.utils.DataBackupManager.importFromJson(context, uri, db)
+                                if (result.isSuccess) {
+                                    localSuccessMessage = "Nhập dữ liệu từ file thành công!"
+                                    viewModel.triggerAutoSync()
+                                } else {
+                                    localErrorMessage = "Lỗi nhập file: ${result.exceptionOrNull()?.message}"
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = OrangeHighlight)
+                    ) {
+                        Text("CÓ, GHI ĐÈ LẠI", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showImportConfirmDialog = null }) {
+                        Text("HỦY", color = Color.White)
+                    }
+                },
+                containerColor = SolidCardBg,
+                titleContentColor = Color.White,
+                textContentColor = Color.White
+            )
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
+            colors = CardDefaults.cardColors(containerColor = GlassCardBg),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "XUẤT & NHẬP FILE DỮ LIỆU CỤC BỘ (JSON)",
+                    color = WhiteOpacity50,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                Text(
+                    text = "Sao lưu dữ liệu ngoại tuyến ra file JSON hoặc khôi phục lại dữ liệu cũ từ file lưu trữ điện thoại.",
+                    color = WhiteOpacity70,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+
+                if (localErrorMessage.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "❌ $localErrorMessage", color = ErrorRed, fontSize = 11.sp)
+                }
+                if (localSuccessMessage.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "✅ $localSuccessMessage", color = SuccessGreen, fontSize = 11.sp)
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            localErrorMessage = ""
+                            localSuccessMessage = ""
+                            val formatter = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                            val dateString = formatter.format(java.util.Date())
+                            exportLauncher.launch("ChiTieuShipper_Backup_${dateString}.json")
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SoftOrangeContainer,
+                            contentColor = OrangeHighlight
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("XUẤT FILE 📤", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = {
+                            localErrorMessage = ""
+                            localSuccessMessage = ""
+                            importLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = 0.05f),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("NHẬP FILE 📥", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // --- IN-APP UPDATE FOR NON-PLAY STORE APPS ---
         val updateState by viewModel.updateState.collectAsStateWithLifecycle()

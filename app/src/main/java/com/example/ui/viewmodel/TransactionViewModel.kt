@@ -369,7 +369,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun triggerAutoSync() {
+    fun triggerAutoSync() {
         com.example.data.firebase.FirebaseManager.autoSyncToCloud(
             context = getApplication(),
             transactionRepository = repository,
