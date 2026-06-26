@@ -1,7 +1,7 @@
 {
-  "versionCode": 1010002,
-  "versionName": "1.10.2",
-  "updateLog": "",
-  "apkUrl": "https://github.com/hade267/quanlychitieu/releases/download/v1.10.2/com.hade.chitieushipper_1.10.2.apk",
+  "versionCode": 1010000,
+  "versionName": "1.10.0",
+  "updateLog": "Cập nhật phiên bản lớn 1.10.0: Tích hợp hoàn toàn tính năng Đăng nhập bằng Google (Google Sign-In) đồng bộ hóa dữ liệu thông suốt, giao diện đăng nhập tối giản và hiện đại hơn.",
+  "apkUrl": "https://github.com/hade267/quanlychitieu/releases/download/v1.10.0/com.hade.chitieushipper_1.10.0.apk",
   "forceUpdate": false
 }

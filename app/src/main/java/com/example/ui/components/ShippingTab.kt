@@ -58,9 +58,26 @@ fun ShippingTab(viewModel: TransactionViewModel) {
     var orderToEdit by remember { mutableStateOf<ShippingOrder?>(null) }
     var orderToDelete by remember { mutableStateOf<ShippingOrder?>(null) }
 
-    // Computations for delivery dashboard summary
+    // Computations for delivery dashboard summary (shipping fee earned is only calculated for today as requested)
+    val todayStartAndEnd = remember(allOrders) {
+        val cal = java.util.Calendar.getInstance()
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        val startOfToday = cal.timeInMillis
+        
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+        cal.set(java.util.Calendar.MINUTE, 59)
+        cal.set(java.util.Calendar.SECOND, 59)
+        cal.set(java.util.Calendar.MILLISECOND, 999)
+        val endOfToday = cal.timeInMillis
+        startOfToday to endOfToday
+    }
+
     val completedOrders = allOrders.filter { it.status == "DA_GIAO" }
-    val totalShippingFeeEarned = completedOrders.sumOf { it.shippingFee }
+    val completedOrdersToday = completedOrders.filter { it.timestamp in todayStartAndEnd.first..todayStartAndEnd.second }
+    val totalShippingFeeEarned = completedOrdersToday.sumOf { it.shippingFee }
     val totalActiveCod = allOrders.filter { it.status == "DANG_GIAO" && !it.customerPrepaid }.sumOf { it.orderAmount }
     val activeOrdersCount = allOrders.count { it.status == "DANG_GIAO" }
 
@@ -115,7 +132,7 @@ fun ShippingTab(viewModel: TransactionViewModel) {
                     ) {
                         // Earnings box
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Phí Ship Thu Về 💰", color = WhiteOpacity50, fontSize = 11.sp)
+                            Text("Phí Ship Hôm Nay 💰", color = WhiteOpacity50, fontSize = 11.sp)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "${currencyFormatter.format(totalShippingFeeEarned)}đ",
